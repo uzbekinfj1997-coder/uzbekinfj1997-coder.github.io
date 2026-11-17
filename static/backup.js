@@ -4,7 +4,7 @@
 // a game deliberately cleared stays cleared. Buttons: data-backup-save, data-backup-load; status text: data-backup-status.
 (() => {
   const MARK = "sora.backup.synced", RESTORED = "sora.backup.restored", PREFIX = "sora.", API = "/api/backup";
-  const NO_SERVER = window.SORA_EDITION === "friends";   // the friends' website: progress only in the browser (and the backup file)
+  const NO_SERVER = window.SORA_STATIC === true;   // a website (Sora public, Aziza): progress only in the browser (and the backup file)
   const WAIT_MS = 2000, BEACON_LIMIT = 60000;   // browsers refuse larger bodies while a page is closing
   const JSON_HEADERS = { "Content-Type": "application/json" };
   let ready = false, sent = null, timer = null, keepStatus = false;

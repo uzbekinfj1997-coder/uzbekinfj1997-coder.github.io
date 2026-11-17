@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aziza</title>
+<script src="/aziza/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "aziza"; window.SORA_STATIC = true;</script>
+<link rel="icon" href="/aziza/static/aziza-icon-192.png">
+<link rel="manifest" href="/aziza/static/aziza.webmanifest">
+<link rel="apple-touch-icon" href="/aziza/static/aziza-icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/aziza/static/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/aziza/"><span class="brand-mark">A</span>Aziza</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/aziza/" aria-current="page">Home</a>
+  
+  <div class="nav-label">Games</div>
+  
+  <a class="nav-item" href="/aziza/2048/" >2048 (game)</a>
+  
+  <a class="nav-item" href="/aziza/walks/" >Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local">Your progress stays in this browser</span>
+    <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  
+<div class="page-title">
+  <div class="ov-label">Aziza</div>
+  <h1>Games</h1>
+  <p>Pick a game.</p>
+</div>
+
+<h2 class="topic-head">Games</h2>
+<div class="tools">
+  
+  <a class="tool-card compact" href="/aziza/2048/" title="A short break: slide the tiles, merge equal numbers and reach 2048. Arrow keys or WASD on a computer, swipe on a touch screen.&#10;Input: Nothing to upload: the game runs in the browser">
+    <h3>2048 (game)</h3><span class="open">→</span>
+  </a>
+  
+  <a class="tool-card compact" href="/aziza/walks/" title="A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.&#10;Input: Nothing to upload: the walks run in the browser">
+    <h3>Walks</h3><span class="open">→</span>
+  </a>
+  
+</div>
+
+<div class="tools">
+  
+</div>
+
+</main>
+</div>
+<script src="/aziza/static/common.js"></script>
+<script src="/aziza/static/backup.js"></script>
+
+</body>
+</html>

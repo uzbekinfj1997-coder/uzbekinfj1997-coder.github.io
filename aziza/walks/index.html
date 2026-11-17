@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walks · Aziza</title>
+<script src="/aziza/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "aziza"; window.SORA_STATIC = true;</script>
+<link rel="icon" href="/aziza/static/aziza-icon-192.png">
+<link rel="manifest" href="/aziza/static/aziza.webmanifest">
+<link rel="apple-touch-icon" href="/aziza/static/aziza-icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/aziza/static/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/aziza/"><span class="brand-mark">A</span>Aziza</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/aziza/" >Home</a>
+  
+  <div class="nav-label">Games</div>
+  
+  <a class="nav-item" href="/aziza/2048/" >2048 (game)</a>
+  
+  <a class="nav-item" href="/aziza/walks/" aria-current="page">Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local">Your progress stays in this browser</span>
+    <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  <div class="page-title"><div class="ov-label">Aziza</div><h1>Walks</h1><p>A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.</p></div>
+  
+  
+<style>
+  /* Choosing a walk: nothing heavy loads until you've chosen one. */
+  .walks { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4); }
+  .walks-card { position: relative; display: grid; gap: var(--space-2); padding-bottom: var(--space-3); color: inherit; text-decoration: none; background: var(--bg-100, rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.14); }
+  .walks-card:hover, .walks-card:focus-visible { border-color: var(--volt); outline: none; }
+  .walks-card img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+  .walks-card h2 { margin: 0; padding: 0 var(--space-3); font-family: var(--font-display); font-size: 20px; text-transform: uppercase; letter-spacing: .04em; }
+  .walks-card p { margin: 0; padding: 0 var(--space-3); line-height: 1.45; opacity: .85; }
+  .walks-card small { padding: 0 var(--space-3); opacity: .7; }
+  .walks-last { position: absolute; left: 10px; top: 10px; padding: 2px 8px; font: 600 12px var(--font-sans); color: #0b0f16; background: var(--volt); }
+  .walks-last[hidden] { display: none; }
+</style>
+<div class="walks" id="walks">
+  
+  <a class="walks-card" href="/aziza/walks/haram/" data-place="haram">
+    <img src="/aziza/static/walks/haram.jpg" alt="">
+    <span class="walks-last" hidden>Last walked</span>
+    <h2>Masjid al-Haram, Makkah</h2>
+    <p>The plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and real open-licence photographs.</p>
+    <small>About 1 km, 11 minutes</small>
+  </a>
+  
+</div>
+
+</main>
+</div>
+<script src="/aziza/static/common.js"></script>
+<script src="/aziza/static/backup.js"></script>
+
+<script>
+  document.querySelector(`.walks-card[data-place="${localStorage.getItem("sora.walks.last")}"] .walks-last`)?.removeAttribute("hidden");
+</script>
+
+</body>
+</html>

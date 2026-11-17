@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mind Map · Sora</title>
+<script src="/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "friends";</script>
+<link rel="icon" href="/static/sora.ico">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/sora-icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/"><span class="brand-mark">S</span>Sora</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/" >Home</a>
+  
+  <div class="nav-label">SBR</div>
+  
+  <a class="nav-item" href="/study-quest/" >Study Quest</a>
+  
+  <a class="nav-item" href="/sbr-map/" aria-current="page">Mind Map</a>
+  
+  
+  <div class="nav-label">Games</div>
+  
+  <a class="nav-item" href="/2048/" >2048 (game)</a>
+  
+  <a class="nav-item" href="/balloon-math/" >Balloon Math</a>
+  
+  <a class="nav-item" href="/frog-marbles/" >Frog Marbles</a>
+  
+  <a class="nav-item" href="/chicken-hunt/" >Chicken Hunt</a>
+  
+  <a class="nav-item" href="/block-craft/" >Block Craft</a>
+  
+  <a class="nav-item" href="/memory-palace/" >Memory Palace</a>
+  
+  <a class="nav-item" href="/memory-ops/" >Memory Ops</a>
+  
+  <a class="nav-item" href="/walks/" >Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local">Your progress stays in this browser</span>
+    <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  <div class="page-title"><div class="ov-label">Sora</div><h1>Mind Map</h1><p>The whole SBR syllabus as one mind map: areas, chapters, sections and every point, opened branch by branch, with search and a link from each point to its Study Quest stage.</p></div>
+  
+  
+<style>
+  /* the SBR mind map: a bar (search, view, settings, full screen), the path to the branch in view, then the map or the outline */
+  .mm { display: grid; gap: var(--space-3); }
+  .mm-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
+  .mm-bar input[type=search] { flex: 1 1 260px; min-width: 0; padding: 8px 10px; background: var(--bg-200); color: var(--ink); border: 1px solid var(--line); font: inherit; }
+  .mm-bar input[type=search]:focus { outline: none; border-color: var(--volt); }
+  .mm-views { display: inline-flex; flex-wrap: wrap; max-width: 100%; border: 1px solid var(--line); }     /* (six views: on a phone they wrap) */
+  .mm-views button { border: 0; background: transparent; color: var(--ink-muted); padding: 6px 12px; }
+  .mm-views button.on { background: var(--volt-soft); color: var(--volt-text); }
+  /* zoom: − 100% + and Fit; the map (or the outline) is drawn at that size, its scroll area with it */
+  .mm-zoom { display: inline-flex; border: 1px solid var(--line); }
+  .mm-zoom button { border: 0; background: transparent; color: var(--ink); padding: 6px 10px; min-width: 34px; cursor: pointer; }
+  .mm-zoom button:hover { background: var(--bg-300); }
+  .mm-zoom #mmZoomReset { min-width: 58px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+  .mm-stage > :not(.mm-sunburst) { zoom: var(--mm-zoom, 1); }
+  /* the sunburst's and the world's drawing: in its own scrolling box, fitted to it at 100% (--fitw, set when drawn), grown by the zoom */
+  .mm-scroll { overflow: auto; height: calc(78vh - 80px); min-height: 360px; }
+  .mm.is-fullscreen .mm-scroll { height: calc(100vh - 200px); }
+  .mm-scroll > svg { width: calc(var(--fitw, 600px) * var(--mm-zoom, 1)); max-width: none; max-height: none; height: auto; aspect-ratio: auto; margin: 0 auto; }
+  .mm-stage { touch-action: pan-x pan-y; }     /* two fingers on the map zoom the map, not the page */
+  .mm-crumbs { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; color: var(--ink-muted); font-size: 13px; }
+  .mm-crumbs button { background: transparent; border: 0; color: var(--ink-muted); padding: 2px 4px; text-decoration: underline; cursor: pointer; }
+  .mm-crumbs b { color: var(--ink); }
+  .mm-results[hidden] { display: none; }
+  .mm-results { background: var(--bg-200); border-left: 4px solid var(--volt); padding: var(--space-3) var(--space-4); display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
+  .mm-results button { text-align: left; background: transparent; border: 0; color: var(--ink); padding: 4px 0; cursor: pointer; }
+  .mm-results small { display: block; color: var(--ink-muted); }
+  .mm-stage { overflow: auto; border: 1px solid var(--line); background: var(--bg-100); min-height: 60vh; max-height: 78vh; }
+  .mm.is-fullscreen .mm-stage { max-height: none; height: calc(100vh - 120px); }
+  /* each syllabus area has its colour, carried down its branches */
+  .mm [data-area] { --branch: var(--line-strong); }
+  .mm [data-area="A"] { --branch: var(--danger); } .mm [data-area="B"] { --branch: var(--signal); } .mm [data-area="C"] { --branch: var(--volt); }
+  .mm [data-area="D"] { --branch: var(--ember); } .mm [data-area="E"] { --branch: var(--success); } .mm [data-area="F"] { --branch: var(--warning); }
+  /* the map: a node, its branches opening to the right */
+  .mm-map { padding: var(--space-4); width: max-content; }
+  .mm-branch { display: flex; align-items: flex-start; }
+  .mm-branch > .mm-node { margin-top: 3px; }
+  .mm-kids { list-style: none; margin: 0; padding: 0 0 0 14px; position: relative; display: flex; flex-direction: column; }
+  .mm-kids::before { content: ""; position: absolute; left: 0; top: 20px; width: 14px; border-top: 2px solid var(--branch); }
+  .mm-kids > li { position: relative; padding: 3px 0 3px 16px; }
+  .mm-kids > li::before { content: ""; position: absolute; left: 0; top: 20px; width: 16px; border-top: 2px solid var(--branch); }
+  .mm-kids > li::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; border-left: 2px solid var(--branch); }
+  .mm-kids > li:first-child::after { top: 20px; } .mm-kids > li:last-child::after { bottom: auto; height: 21px; } .mm-kids > li:only-child::after { display: none; }
+  .mm-node { position: relative; display: block; max-width: 340px; padding: 6px 10px; background: var(--bg-200); border: 1px solid var(--line); border-left: 4px solid var(--branch);
+             color: var(--ink); font-size: 14px; line-height: 1.35; cursor: pointer; text-align: left; }
+  .mm-node:hover, .mm-node:focus-visible { background: var(--bg-300); outline: none; }
+  .mm-node.found { box-shadow: var(--glow-volt); }
+  .mm-node.x-root, .mm-node.x-area, .mm-node.x-chapter { font-family: var(--font-display); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .mm-node.x-root { font-size: 22px; padding: 10px 16px; } .mm-node.x-area { font-size: 16px; } .mm-node.x-chapter { font-size: 15px; }
+  .mm-node.x-group, .mm-node.x-stage { font-weight: 600; }
+  .mm-count { margin-left: 8px; display: inline-block; min-width: 20px; padding: 0 6px; border-radius: 10px; background: var(--bg-300); color: var(--ink-muted); font-size: 12px; text-align: center; }
+  .mm-tag { display: inline-block; margin-right: 6px; padding: 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; border: 1px solid var(--line-strong); color: var(--ink-muted); }
+  .mm-tag.true { color: var(--success); border-color: var(--success); } .mm-tag.false { color: var(--danger); border-color: var(--danger); }
+  .mm-tag.miss { color: var(--warning); border-color: var(--warning); margin: 0 0 0 6px; } .mm-tag.ok { color: var(--success); border-color: var(--success); margin: 0 0 0 6px; }
+  .mm-a { display: block; color: var(--volt-text); margin-top: 2px; }
+  .mm-d { text-transform: none; letter-spacing: 0; font-family: var(--font-sans); font-weight: 400; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); color: var(--ink-muted); font-size: 13px; }
+  .mm-d p { margin: 2px 0; } .mm-d b { color: var(--ink); }
+  .mm-acts { text-transform: none; letter-spacing: 0; font-family: var(--font-sans); display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap; }
+  .mm-acts a, .mm-acts button { font-size: 12px; background: transparent; border: 0; padding: 0; color: var(--volt-text); text-decoration: underline; cursor: pointer; }
+  .mm-steps { margin: 6px 0 0; padding-left: 1.3em; font-size: 13px; }
+  /* the outline: the same tree as an indented list */
+  .mm-outline { padding: var(--space-3) var(--space-4); }
+  .mm-outline ul { list-style: none; margin: 0; padding-left: 18px; border-left: 2px solid var(--branch); }
+  .mm-outline > ul { padding-left: 0; border-left: 0; }
+  .mm-outline li { margin: 2px 0; }
+  .mm-outline .mm-node { max-width: none; border-width: 0 0 0 4px; background: transparent; padding: 3px 8px; }
+  .mm-large .mm-node { font-size: 16px; } .mm-large .mm-d { font-size: 15px; }
+  /* what a view doesn't use: Unfold all off the tree views, the path on Progress */
+  .mm[data-view="columns"] #mmUnfold, .mm[data-view="sunburst"] #mmUnfold, .mm[data-view="world"] #mmUnfold, .mm[data-view="sketch"] #mmUnfold, .mm[data-view="progress"] #mmUnfold { display: none; }
+  .mm[data-view="progress"] .mm-crumbs { visibility: hidden; }
+  /* the compact map: each run of points packed two or three to a row, as one branch */
+  .mm-pack { display: grid; grid-template-columns: repeat(var(--cols), max-content); gap: 4px 10px; align-items: start; }
+  .mm-pack > .mm-branch > .mm-node { margin-top: 0; }
+  .mm-compact .mm-node { max-width: 270px; }
+  /* columns: one level a column, each scrolling on its own; a point's explanation in the last */
+  .mm-columns { display: flex; align-items: stretch; height: 70vh; width: max-content; }
+  .mm.is-fullscreen .mm-columns { height: calc(100vh - 150px); }
+  .mm-col { flex: none; width: 290px; overflow-y: auto; border-right: 1px solid var(--line); padding: 6px; display: flex; flex-direction: column; gap: 3px; }
+  .mm-col-head { font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; font-size: 12px; color: var(--ink-muted); padding: 4px 6px 8px; border-bottom: 2px solid var(--branch); margin-bottom: 4px; }
+  .mm-ci { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; text-align: left; background: var(--bg-200); border: 1px solid var(--line); border-left: 4px solid var(--branch);
+           color: var(--ink); padding: 6px 8px; font: inherit; font-size: 13px; line-height: 1.35; cursor: pointer; }
+  .mm-ci:hover { background: var(--bg-300); } .mm-ci.on { background: var(--volt-soft); border-color: var(--volt); border-left-color: var(--branch); }
+  .mm-ci .mm-count { flex: none; }
+  .mm-col-detail { width: 400px; } .mm-col-detail .mm-node { max-width: none; cursor: default; }
+  /* the sunburst: rings round what's in the middle, and beside it the slice pointed at */
+  .mm-sunburst { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--space-4); padding: var(--space-3); align-items: start; }
+  @media (max-width: 1000px) { .mm-sunburst { grid-template-columns: 1fr; } }
+  .mm-sb { display: block; font-family: var(--font-sans); }
+  .mm-sb g { cursor: pointer; }
+  .mm-sb path { stroke: var(--bg-100); stroke-width: 1.5; }
+  .mm-sb .sb-d3 path { stroke-width: .6; } .mm-sb .sb-d4 path { stroke-width: .25; }
+  .mm-sb g:hover path { fill-opacity: 1 !important; }
+  .mm-sb .sb-pass path { stroke: var(--success); stroke-width: 2.5; } .mm-sb .sb-miss path { stroke: var(--danger); stroke-width: 1.5; }
+  .mm-sb g.found path { stroke: var(--volt); stroke-width: 4; fill-opacity: 1 !important; }
+  .mm-sb text { fill: var(--ink); pointer-events: none; }
+  .mm-sb .sb-centre circle { stroke: var(--line-strong); stroke-width: 2; fill-opacity: .35; } .mm-sb .sb-centre.up { cursor: zoom-out; }
+  .mm-sb-info { display: grid; gap: 6px; position: sticky; top: 0; } .mm-sb-info small { color: var(--ink-muted); } .mm-sb-info .mm-node { max-width: none; cursor: default; }
+  /* the world: an atlas page; districts' names from 1.7x, towns from 3.5x */
+  .wm-wrap { display: grid; gap: 4px; }
+  .wm { display: block; cursor: grab; user-select: none; touch-action: pan-x pan-y; }
+  .dragging .wm { cursor: grabbing; }
+  .wm-hint { color: var(--ink-muted); font-size: 12px; }
+  .wm-sea { fill: #b4d4ea; } .wm-wave { fill: none; stroke: #9cc3df; stroke-width: 1.2; }
+  .wm-shallow2 { fill: none; stroke: #c6e0f1; stroke-width: 26; stroke-linejoin: round; } .wm-shallow { fill: none; stroke: #d9ecf7; stroke-width: 11; stroke-linejoin: round; }
+  .wm-land { fill: #d3cab4; }
+  .wm-r { stroke: none; } .wm-f1 { } .wm-r.wm-f2:hover, .wm-r.wm-f1:hover { filter: brightness(1.07); cursor: pointer; }
+  .wm-hit { fill: transparent; } .wm-hit:hover { fill: rgba(255, 255, 255, .22); cursor: pointer; }
+  .wm-b3 { fill: none; stroke: #8a6d4f; stroke-width: .5; stroke-dasharray: 1.4 1.8; opacity: .8; }
+  .wm-b2 { fill: none; stroke: #7a5a3c; stroke-width: 1.1; stroke-dasharray: 5 2.5; }
+  .wm-b1 { fill: none; stroke: #5b4027; stroke-width: 2.4; stroke-linejoin: round; }
+  .wm-coast { fill: none; stroke: #33586f; stroke-width: 1.6; stroke-linejoin: round; }
+  .wm text { font-family: Georgia, "Times New Roman", serif; fill: #3a2717; paint-order: stroke; stroke: rgba(253, 248, 232, .75); stroke-linejoin: round; pointer-events: none; }
+  .wm .wm-t1 { text-transform: uppercase; letter-spacing: .16em; font-weight: 700; stroke: none; fill: rgba(92, 56, 24, .5); }     /* (beneath the provinces' names) */
+  .wm .wm-t2 { font-style: italic; stroke-width: 2px; } .wm .wm-t3 { stroke-width: 1.2px; fill: #4d3a28; }
+  .wm-town { fill: #3b2a1a; stroke: #f6efdc; stroke-width: .45; cursor: pointer; } .wm-town:hover { fill: #b03a2e; }
+  .wm-town.wm-trap { fill: #6b4a2b; } .wm-town.wm-sort { fill: #2f5d7c; } .wm-town.wm-example { fill: #5c6b2e; }
+  .mm-side { display: grid; gap: var(--space-3); align-content: start; position: sticky; top: 0; }
+  .wm-legend { display: grid; gap: 3px; } .wm-legend > small { color: var(--ink-muted); }
+  .wm-key { display: flex; gap: 8px; align-items: center; justify-content: flex-start; text-align: left; background: transparent; border: 0; color: var(--ink); padding: 2px 0;
+            font-family: var(--font-sans); font-size: 13px; font-weight: 400; text-transform: none; letter-spacing: 0; line-height: 1.3; cursor: pointer; }
+  .wm-key:hover { color: var(--volt-text); } .wm-key span { flex: none; width: 14px; height: 14px; border: 1px solid #6b4d30; }
+  .wm-symbols { margin-top: 6px; line-height: 1.6; }
+  .wm-pin path { fill: #c0392b; stroke: #fff6e6; stroke-width: .7; } .wm-pin { cursor: pointer; }
+  .wm-rose circle { fill: rgba(253, 248, 232, .85); stroke: #6b4d30; stroke-width: 1; } .wm-rose path { fill: #b9a27f; stroke: #6b4d30; stroke-width: .6; } .wm-rose path.n { fill: #8f2f22; }
+  .wm-rose text, .wm-cart text { stroke: none; }
+  .wm-cart rect:first-child { fill: rgba(253, 248, 232, .9); stroke: #6b4d30; stroke-width: 1; } .wm-cart rect { stroke: #6b4d30; stroke-width: .5; }
+  .wm-cart .wm-cart-h { font-style: italic; font-weight: 700; }
+  #mmStage[data-lod="1"] .wm-l3, #mmStage[data-lod="1"] .wm-town, #mmStage[data-lod="2"] .wm-town { display: none; }
+  .wm .found { filter: brightness(1.15) drop-shadow(0 0 3px #fff); }
+  /* the sketch: a hand-drawn mind map on a white page */
+  .sk { display: block; user-select: none; }
+  .sk text { font-family: "Segoe Print", "Comic Sans MS", "Chalkboard SE", "Comic Neue", "Bradley Hand", cursive; font-weight: 700; pointer-events: none; }
+  .sk-paper { fill: #fffdf7; }
+  .sk-arrow { fill: none; stroke-linecap: round; }
+  .sk-fill { fill: #fff; stroke-linejoin: round; } .sk-inner { fill: none; stroke-width: 1.2; opacity: .55; }
+  .sk-b { cursor: pointer; } .sk-b:hover .sk-fill { fill: #fff8db; }
+  .sk-more .sk-fill { stroke-dasharray: 7 5; } .sk-more text { font-style: italic; }
+  .sk-miss .sk-fill { fill: #ffe9e6; }
+  .sk-ring { fill: none; stroke-width: 5; stroke-linejoin: round; } .sk-centre.up { cursor: zoom-out; }
+  .sk-doodles g { fill: none; stroke: #2d2a32; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  /* progress: a tile for each chapter, area by area */
+  .mm-progress { padding: var(--space-4); display: grid; gap: var(--space-4); }
+  .mm-sum { display: flex; flex-wrap: wrap; gap: 18px; color: var(--ink-muted); } .mm-sum b { color: var(--ink); }
+  .mm-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-muted); }
+  .mm-legend span { border-left: 4px solid var(--line-strong); padding-left: 6px; } .mm-legend .going { border-color: var(--volt); } .mm-legend .done { border-color: var(--success); } .mm-legend .worst { border-color: var(--danger); }
+  .mm-area-h { margin: 0 0 8px; font-family: var(--font-display); font-size: 15px; text-transform: uppercase; letter-spacing: .03em; border-left: 4px solid var(--branch); padding-left: 8px; }
+  .mm-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .mm-tile { background: var(--bg-200); border: 1px solid var(--line); border-left: 4px solid var(--line-strong); padding: 10px 12px; display: grid; gap: 5px; font-size: 13px; align-content: start; }
+  .mm-tile.going { border-left-color: var(--volt); } .mm-tile.done { border-left-color: var(--success); } .mm-tile.worst { box-shadow: inset 0 0 0 1px var(--danger); }
+  .mm-tile-h b { font-family: var(--font-display); color: var(--ink-muted); margin-right: 4px; }
+  .mm-tbar { height: 6px; background: var(--bg-300); } .mm-tbar span { display: block; height: 100%; background: var(--success); }
+  .mm-tile small { color: var(--ink-muted); } .mm-tile small.miss { color: var(--warning); }
+  .mm-tile-card { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+<div class="mm" id="mm">
+  <div class="mm-bar">
+    <input type="search" id="mmSearch" placeholder="Search the map (press / )" aria-label="Search the map" autocomplete="off">
+    <div class="mm-views" role="group" aria-label="View"><button type="button" data-view="map">Map</button><button type="button" data-view="compact" title="The map, a section's points packed two or three to a row">Compact</button><button type="button" data-view="columns" title="One level a column, as folders are browsed">Columns</button><button type="button" data-view="sunburst" title="The whole syllabus in rings round the middle">Sunburst</button><button type="button" data-view="world" title="The syllabus as a map of countries: areas, provinces, districts, towns">World</button><button type="button" data-view="sketch" title="A hand-drawn mind map: bubbles, arrows and doodles">Sketch</button><button type="button" data-view="progress" title="Every chapter's Study Quest progress">Progress</button><button type="button" data-view="outline">Outline</button></div>
+    <div class="mm-zoom" role="group" aria-label="Zoom">
+      <button type="button" id="mmZoomOut" title="Zoom out (−, or Ctrl + the mouse wheel)" aria-label="Zoom out">−</button>
+      <button type="button" id="mmZoomReset" title="Back to 100% (0)" aria-label="Back to full size">100%</button>
+      <button type="button" id="mmZoomIn" title="Zoom in (+, or Ctrl + the mouse wheel)" aria-label="Zoom in">+</button>
+      <button type="button" id="mmZoomFit" title="Fit everything that's open into view">Fit</button>
+    </div>
+    <button type="button" class="small" id="mmUnfold" title="Open every branch of what's in the middle (with SBR there, the whole syllabus) and show it as wide as the view">Unfold all</button>
+    <button type="button" class="small" id="mmClose" title="Fold every branch back">Fold all</button>
+    <button type="button" class="small" data-settings>Settings</button>
+    <button type="button" class="small" data-fullscreen>Full screen</button>
+  </div>
+  <nav class="mm-crumbs" id="mmCrumbs" aria-label="Where you are"></nav>
+  <div class="mm-results" id="mmResults" hidden></div>
+  <div class="mm-stage" id="mmStage"></div>
+</div>
+
+</main>
+</div>
+<script src="/static/common.js"></script>
+<script src="/static/backup.js"></script>
+
+<script src="/static/mindmap/sbr_map.js"></script>
+<script src="/static/mindmap/map.js"></script>
+
+</body>
+</html>

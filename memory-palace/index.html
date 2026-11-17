@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Palace · Sora</title>
+<script src="/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "friends";</script>
+<link rel="icon" href="/static/sora.ico">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/static/sora-icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/"><span class="brand-mark">S</span>Sora</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/" >Home</a>
+  
+  <div class="nav-label">SBR</div>
+  
+  <a class="nav-item" href="/study-quest/" >Study Quest</a>
+  
+  <a class="nav-item" href="/sbr-map/" >Mind Map</a>
+  
+  
+  <div class="nav-label">Games</div>
+  
+  <a class="nav-item" href="/2048/" >2048 (game)</a>
+  
+  <a class="nav-item" href="/balloon-math/" >Balloon Math</a>
+  
+  <a class="nav-item" href="/frog-marbles/" >Frog Marbles</a>
+  
+  <a class="nav-item" href="/chicken-hunt/" >Chicken Hunt</a>
+  
+  <a class="nav-item" href="/block-craft/" >Block Craft</a>
+  
+  <a class="nav-item" href="/memory-palace/" aria-current="page">Memory Palace</a>
+  
+  <a class="nav-item" href="/memory-ops/" >Memory Ops</a>
+  
+  <a class="nav-item" href="/walks/" >Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local">Your progress stays in this browser</span>
+    <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  <div class="page-title"><div class="ov-label">Sora</div><h1>Memory Palace</h1><p>Remember lists fast by placing them along a route you know: learn the route, store a list, recall it, and review it on a schedule so it stays. For children and adults (IFRS packs included). Works offline.</p></div>
+  
+  
+<style>
+  /* Page chrome follows Sora's design; routes are drawn by the page (SVG map, WebGL walk, emoji pictures),
+     so nothing is downloaded and the game works offline. */
+  .mp { display: grid; gap: var(--space-4); --big: 44px; }
+  .mp[data-age="child"] { --big: 64px; }
+  .mp[data-age="senior"] { --big: 56px; font-size: 19px; }
+  .mp[data-age="senior"] .mp-head h2 { font-size: 30px; }
+  .mp[data-age="senior"] button, .mp[data-age="child"] button { min-height: 52px; font-size: 16px; }
+  .mp.is-fullscreen { overflow: auto; }
+  .mp-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+  .mp-bar .row { gap: var(--space-2); }
+  .mp-head h2 { margin: 0 0 var(--space-1); font-family: var(--font-display); text-transform: uppercase; letter-spacing: .03em; }
+  .mp-head .hint { margin: 0; max-width: 760px; }
+  .mp .big { font-size: var(--big); line-height: 1.1; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+  .mp-foot { margin-top: var(--space-2); }
+
+  .mp-intro .mp-row { display: flex; gap: var(--space-6); justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
+  .mp-intro h2 { margin: 0 0 var(--space-2); font-size: 18px; }
+  .mp-steps { margin: 0; padding-left: 20px; display: grid; gap: 4px; color: var(--ink-muted); }
+  .mp-streak { display: grid; justify-items: center; min-width: 110px; }
+  .mp-streak b { font-family: var(--font-mono); font-size: 40px; line-height: 44px; color: var(--volt-text, var(--volt)); }
+  .mp-streak span { font-size: 12px; color: var(--ink-muted); }
+  .mp-due h2 { margin: 0 0 var(--space-3); font-size: 18px; }
+  .mp-due-row { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line); }
+  .mp-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-4); }
+  .mp-card { display: grid; gap: var(--space-2); align-content: start; padding: var(--space-6); background: var(--bg-200); clip-path: var(--cut-panel); border-top: 4px solid #5fa04a; }
+  .mp-card[data-theme="house"] { border-top-color: #c8875a; }
+  .mp-card-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); }
+  .mp-card h3 { margin: 0; font-family: var(--font-display); font-size: 22px; text-transform: uppercase; }
+  .mp-card p { margin: 0; }
+  .mp .badge.permanent { background: #c8875a; color: #1a0e05; }
+  .mp .badge.practice { background: #5fa04a; color: #0b1a07; }
+  .mp-strip { display: flex; flex-wrap: wrap; gap: 4px; font-size: 22px; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+  .mp-done { margin: 0; padding-left: 18px; color: var(--ink-muted); }
+
+  .mp-stage { position: relative; height: min(52vh, 460px); min-height: 280px; background: #0b1020; clip-path: var(--cut-panel); overflow: hidden; }
+  .mp.is-fullscreen .mp-stage { height: 58vh; }
+  .mp-canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  .mp-map { display: block; width: 100%; height: 100%; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+  .mp-spot { cursor: pointer; }
+  .mp-spot .ring { fill: transparent; }
+  .mp-spot.on .ring { fill: var(--volt); }
+  .mp-spot.on { filter: drop-shadow(0 0 1.5px rgba(0,0,0,.6)); }
+  .mp-controls { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .mp-place { display: flex; align-items: center; gap: var(--space-3); }
+  .mp-place small, .mp-pair small { display: block; color: var(--ink-muted); }
+  .mp-place b, .mp-pair b { font-size: 1.25em; }
+
+  .mp-question { display: grid; justify-items: center; gap: var(--space-2); }
+  .mp-question p { margin: 0; font-size: 1.2em; }
+  .mp-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+  .mp-choices.wide { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  .mp-choice { display: grid; justify-items: center; gap: 4px; height: auto; min-height: 110px; padding: var(--space-3); text-transform: none; letter-spacing: 0; font-weight: 600; border-radius: 0; }
+  .mp-choice.good { background: #2e8b57; border-color: #2e8b57; color: #fff; }
+  .mp-choice.bad { background: #c0392b; border-color: #c0392b; color: #fff; }
+  .mp-choice.shake { animation: mp-shake .35s; }
+  @keyframes mp-shake { 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+  .mp-order { display: flex; flex-wrap: wrap; gap: 6px; min-height: 48px; font-size: 32px; font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif; }
+
+  .mp-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: var(--space-3); }
+  .mp-tabs button.on { background: var(--volt); color: var(--on-volt, #000); border-color: var(--volt); }
+  .mp-packs { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-3); }
+  .mp-pack { display: grid; gap: 4px; justify-items: start; height: auto; padding: var(--space-4); text-align: left; text-transform: none; letter-spacing: 0; border-radius: 0; }
+  .mp-pack b { font-family: var(--font-display); font-size: 17px; text-transform: uppercase; }
+  .mp-pack span { font-weight: 400; color: var(--ink-muted); }
+  .mp-pack small { font-weight: 400; font-size: 15px; }
+  .mp-files { display: grid; gap: var(--space-3); }
+  .mp-book h3 { margin: 0; }
+  .mp-book h4 { margin: var(--space-3) 0 var(--space-2); color: var(--ink-muted); font-weight: 600; }
+  .mp-note { color: var(--volt-text, var(--volt)); }
+  .mp-pack:disabled { opacity: 0.55; }
+  .mp-own { display: grid; gap: var(--space-2); max-width: 760px; }
+  .mp-own textarea, .mp-own input, .mp-store input { width: 100%; box-sizing: border-box; font: inherit; padding: 10px; background: var(--bg-100); color: var(--ink); border: 1px solid var(--line-strong, var(--line)); }
+
+  .mp-store { display: grid; gap: var(--space-3); padding: var(--space-4); background: var(--bg-200); clip-path: var(--cut-panel); }
+  .mp-pair { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+  .mp-pair .plus { font-size: 28px; color: var(--ink-muted); }
+  .mp-idea { margin: 0; font-size: 1.15em; padding: var(--space-3); border-left: 4px solid var(--volt); background: var(--bg-100); }
+  .mp-verdict { font-family: var(--font-display); font-size: 22px; text-transform: uppercase; display: flex; gap: var(--space-3); align-items: baseline; flex-wrap: wrap; }
+  .mp-verdict.good { color: #3fbf6f; } .mp-verdict.bad { color: #ff6b6b; }
+  .mp-verdict:not(:empty) { font-weight: 700; }
+  .mp-stars { display: flex; gap: 8px; }
+  .mp-stars i { width: 44px; height: 44px; background: var(--bg-300); clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+  .mp-stars i.on { background: #ffd23f; }
+  .mp-missed { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+  .mp-games { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .mp-games small { color: var(--ink-muted); }
+  .mp-games a.button { text-decoration: none; display: inline-flex; align-items: center; }
+  .mp-more summary { cursor: pointer; font-family: var(--font-display); font-size: 18px; text-transform: uppercase; }
+  .mp-more h3 { margin: var(--space-4) 0 var(--space-2); font-size: 15px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .mp-mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
+  .mp-mini-card { display: grid; gap: 6px; padding: var(--space-3); background: var(--bg-100); border-left: 5px solid #888; }
+  .mp-mini-card .mp-strip { font-size: 17px; }
+  .mp-kind { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: var(--space-3); }
+  .mp-kind button.on { background: var(--volt); color: var(--on-volt, #000); border-color: var(--volt); }
+  .mp-match { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: var(--space-2); max-width: 900px; }
+  .mp-card-tile { position: relative; height: auto; min-height: 104px; padding: 6px; border-radius: 0; text-transform: none; letter-spacing: 0; display: grid; place-items: center; }
+  .mp-card-tile .back { font-family: var(--font-display); font-size: 34px; color: var(--ink-muted); }
+  .mp-card-tile .front { display: none; justify-items: center; gap: 2px; }
+  .mp-card-tile .front small { font-size: 13px; font-weight: 600; line-height: 1.2; text-align: center; }
+  .mp-card-tile.up .back { display: none; } .mp-card-tile.up .front { display: grid; }
+  .mp-card-tile.up { background: var(--bg-100); border-color: var(--volt); }
+  .mp-card-tile.done { background: #2e8b57; border-color: #2e8b57; color: #fff; }
+  .mp-numbers summary { cursor: pointer; font-family: var(--font-display); font-size: 18px; text-transform: uppercase; }
+  .mp-pegs { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: var(--space-2); margin: var(--space-3) 0; }
+  .mp-pegs div { display: grid; justify-items: center; padding: 6px; background: var(--bg-100); }
+  .mp-pegs .big { font-size: 34px; }
+  @media (max-width: 600px) { .mp-match { --cols: 3 !important; } }
+  @media (max-width: 600px) { .mp-cards { grid-template-columns: 1fr; } .mp-stage { height: 42vh; } }
+</style>
+
+<div class="mp" id="mp">
+  <div class="mp-bar">
+    <span class="hint">Your palaces and lists are kept in this browser.</span>
+    <div class="row">
+      <button class="small" type="button" id="homeBtn">Home</button>
+      <button class="small" type="button" data-settings>Settings</button>
+      <button class="small" type="button" data-fullscreen>Full screen</button>
+    </div>
+  </div>
+  <div id="main"></div>
+</div>
+
+</main>
+</div>
+<script src="/static/common.js"></script>
+<script src="/static/backup.js"></script>
+
+<script src="/static/ops/maps.js"></script>
+<script src="/static/study/sbr.js"></script>
+<script src="/static/palace/data.js"></script>
+<script src="/static/palace/core.js"></script>
+<script src="/static/palace/scene3d.js"></script>
+<script src="/static/palace/app.js"></script>
+
+</body>
+</html>

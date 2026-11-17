@@ -1,7 +1,7 @@
 {
   "name": "Sora",
   "short_name": "Sora",
-  "description": "Study Quest, the SBR mind map and palace, and games: running on this device.",
+  "description": "Sora: games, study and walks, in the browser.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

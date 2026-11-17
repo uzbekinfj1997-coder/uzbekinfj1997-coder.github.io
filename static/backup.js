@@ -10,9 +10,9 @@
   let ready = false, sent = null, timer = null, keepStatus = false;
 
   const tracked = (k) => String(k).startsWith(PREFIX) && k !== MARK;
-  function snapshot() {
-    const out = {};
-    for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (tracked(k)) out[k] = localStorage.getItem(k); }
+  function snapshot() {     // on a website with several apps, only this app's keys (SoraApp, in base.html)
+    const out = {}, keys = window.SoraApp ? window.SoraApp.keys() : Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i));
+    for (const k of keys) if (tracked(k)) out[k] = localStorage.getItem(k);
     return out;
   }
   const stamp = (t) => { const d = new Date(t), p = (n) => String(n).padStart(2, "0"); return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`; };

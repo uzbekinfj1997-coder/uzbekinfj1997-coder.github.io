@@ -4,6 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2048 (game) · Sora</title>
+<script>
+/* Several apps share this web address: each keeps what it saves (scores, players, theme) apart, under its own name. What was saved
+   before they were kept apart is copied into each app once. SoraApp.keys() lists this app's own keys, for the backup file. */
+(() => {
+  const ns = "public:", store = localStorage, p = Storage.prototype, get = p.getItem, set = p.setItem, remove = p.removeItem;
+  const raw = () => Array.from({ length: store.length }, (_, i) => store.key(i));
+  if (get.call(store, ns + "since") === null) {
+    for (const k of raw()) if (!/^[a-z0-9-]+:/.test(k)) { try { set.call(store, ns + k, get.call(store, k)); } catch { /* full */ } }
+    try { set.call(store, ns + "since", String(Date.now())); } catch { /* full */ }
+  }
+  p.getItem = function (k) { return get.call(this, this === store ? ns + k : k); };
+  p.setItem = function (k, v) { return set.call(this, this === store ? ns + k : k, v); };
+  p.removeItem = function (k) { return remove.call(this, this === store ? ns + k : k); };
+  window.SoraApp = { id: "public", keys: () => raw().filter((k) => k.startsWith(ns) && k !== ns + "since").map((k) => k.slice(ns.length)) };
+})();
+</script>
 <script src="/static/players.js"></script>
 <script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -11,9 +27,9 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 <meta name="robots" content="noindex, nofollow">
 <script>window.SORA_EDITION = "public"; window.SORA_STATIC = true;</script>
-<link rel="icon" href="/static/sora.ico">
-<link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/static/sora-icon-192.png">
+<link rel="icon" href="/icon-192.png">
+<link rel="manifest" href="/app.webmanifest">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <meta name="theme-color" content="#07090d">
 <link rel="stylesheet" href="/static/app.css">
 </head>

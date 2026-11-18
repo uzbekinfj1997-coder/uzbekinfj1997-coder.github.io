@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Duel · Maryamxon</title>
+<script>
+/* Several apps share this web address: each keeps what it saves (scores, players, theme) apart, under its own name. What was saved
+   before they were kept apart is copied into each app once. SoraApp.keys() lists this app's own keys, for the backup file. */
+(() => {
+  const ns = "maryamxon:", store = localStorage, p = Storage.prototype, get = p.getItem, set = p.setItem, remove = p.removeItem;
+  const raw = () => Array.from({ length: store.length }, (_, i) => store.key(i));
+  if (get.call(store, ns + "since") === null) {
+    for (const k of raw()) if (!/^[a-z0-9-]+:/.test(k)) { try { set.call(store, ns + k, get.call(store, k)); } catch { /* full */ } }
+    try { set.call(store, ns + "since", String(Date.now())); } catch { /* full */ }
+  }
+  p.getItem = function (k) { return get.call(this, this === store ? ns + k : k); };
+  p.setItem = function (k, v) { return set.call(this, this === store ? ns + k : k, v); };
+  p.removeItem = function (k) { return remove.call(this, this === store ? ns + k : k); };
+  window.SoraApp = { id: "maryamxon", keys: () => raw().filter((k) => k.startsWith(ns) && k !== ns + "since").map((k) => k.slice(ns.length)) };
+})();
+</script>
+
+
+<script src="/static/lang.js"></script>
+<script src="/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "maryamxon"; window.SORA_STATIC = true;</script>
+<link rel="icon" href="/maryamxon/icon-192.png">
+<link rel="manifest" href="/maryamxon/app.webmanifest">
+<link rel="apple-touch-icon" href="/maryamxon/icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/maryamxon/"><span class="brand-mark">M</span>Maryamxon</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/maryamxon/"  data-t>Home</a>
+  
+  <div class="nav-label" data-t>Study</div>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/algebra/"  data-t>Algebra</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/geometry/"  data-t>Geometry</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/physics/"  data-t>Physics</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/chemistry/"  data-t>Chemistry</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/geography/"  data-t>Geography</a>
+  
+  <a class="nav-item" href="/maryamxon/study-duel/" aria-current="page" data-t>Study Duel</a>
+  
+  
+  <div class="nav-label" data-t>Games</div>
+  
+  <a class="nav-item" href="/maryamxon/2048/"  data-t>2048 (game)</a>
+  
+  <a class="nav-item" href="/maryamxon/walks/"  data-t>Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local" data-t>Your progress stays in this browser</span>
+    
+    <button class="small" id="settingsBtn" type="button" title="Theme, language, backup file" data-t data-t-title>Settings</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  <div class="page-title"><div class="ov-label">Maryamxon</div><h1 data-t>Study Duel</h1><p data-t>Challenge each other on your subjects: the same 7 questions for both of you, and each other&#39;s results as they come in.</p></div>
+  
+  
+<style>
+  /* Surah Duel and Study Duel: the duels between two people, kept online (static/duel/game.js). Cards like Study Quest's Home, each with
+     its colour. */
+  .sd { display: grid; gap: var(--space-4); }
+  .sd-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); }
+  .sd-live { font-size: 13px; color: var(--ink-muted); }
+  .sd-live.on::before { content: "●"; color: #3fbf73; margin-right: 6px; }
+  .sd-live.off::before { content: "●"; color: var(--danger); margin-right: 6px; }
+  .sd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
+  .sd-box { --c: var(--volt); display: flex; flex-direction: column; gap: 8px; padding: 14px 16px 16px; background: var(--bg-200); border-top: 3px solid var(--c); min-width: 0; }
+  .sd-box > small { color: var(--c); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+  .sd-box > b { font-family: var(--font-display); font-size: 17px; line-height: 1.3; }
+  .sd-box p { margin: 0; font-size: 14px; line-height: 1.45; }
+  .sd-box .row { gap: 8px; flex-wrap: wrap; margin-top: auto; }
+  .sd-wide { grid-column: 1 / -1; }
+  .sd-turn { --c: var(--volt-text, var(--volt)); }
+  .sd-new { --c: var(--signal); }
+  .sd-wait { --c: var(--ink-muted); }
+  .sd-done { --c: #a982ff; }
+  .sd-learn { --c: var(--success); }
+  /* the scoreboard: the two of you, the running score, the streak and the week's goal */
+  .sd-score { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--space-4); padding: var(--space-6); background: var(--bg-200); clip-path: var(--cut-panel); }
+  .sd-score .who { display: grid; gap: 2px; }
+  .sd-score .who:last-child { text-align: right; }
+  .sd-score .who b { font-family: var(--font-display); font-size: 20px; text-transform: uppercase; }
+  .sd-score .who small { color: var(--ink-muted); }
+  .sd-score .vs { font-family: var(--font-mono); font-size: 40px; color: var(--volt-text, var(--volt)); text-align: center; line-height: 1; }
+  .sd-score .vs small { display: block; font-family: var(--font-sans); font-size: 12px; color: var(--ink-muted); margin-top: 6px; }
+  .sd-together { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-6); align-items: center; font-size: 14px; color: var(--ink-muted); }
+  .sd-together b { color: var(--ink); }
+  .sd-meter { flex: 1; min-width: 140px; height: 8px; background: var(--bg-100); }
+  .sd-meter i { display: block; height: 100%; background: #3fbf73; }
+  .sd-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .sd-list li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: 6px 0; border-top: 1px solid var(--line); font-size: 14px; }
+  .sd-list li:first-child { border-top: 0; }
+  .sd-list small { color: var(--ink-muted); }
+  .sd-list li > button { flex: none; white-space: nowrap; }
+  .sd-ranges { display: grid; gap: 8px; }
+  .sd-ranges button { justify-content: space-between; text-transform: none; letter-spacing: 0; }
+  .sd-ranges + .sd-ranges { margin-top: var(--space-3); }
+  .sd-deck { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
+  .sd-ar { font-family: "Amiri", "Noto Naskh Arabic", "Scheherazade New", serif; font-size: 1.15em; }
+  /* a question */
+  .sd-play { display: grid; gap: var(--space-4); max-width: 720px; }
+  .sd-hud { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); font-family: var(--font-mono); font-size: 14px; }
+  .sd-clock { height: 6px; background: var(--bg-100); }
+  .sd-clock i { display: block; height: 100%; background: var(--volt); transition: width .1s linear; }
+  .sd-q { display: grid; gap: 6px; padding: var(--space-6); background: var(--bg-200); clip-path: var(--cut-panel); }
+  .sd-q small { color: var(--ink-muted); text-transform: uppercase; letter-spacing: .05em; font-size: 12px; }
+  .sd-q b { font-family: var(--font-display); font-size: 28px; line-height: 1.25; }
+  .sd-q .sd-ar { font-size: 40px; line-height: 1.4; font-weight: 400; }
+  .sd-q .tag { justify-self: start; font-size: 11px; font-weight: 700; text-transform: uppercase; background: #e0533d; color: #fff; padding: 2px 8px; }
+  .sd-opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+  .sd-opts button { min-height: 56px; height: auto; padding: 10px 14px; font-size: 16px; text-transform: none; letter-spacing: 0; white-space: normal; }
+  .sd-opts button.good { background: #3fbf73; border-color: #3fbf73; color: #06210f; }
+  .sd-opts button.bad { background: var(--danger); border-color: var(--danger); color: #fff; }
+  .sd-opts button .n { font-family: var(--font-mono); margin-right: 6px; }
+  .sd-bet { justify-self: start; }
+  .sd-bet.on { background: #ffc83d; border-color: #ffc83d; color: #2a1d00; }
+  .sd-feedback { display: grid; gap: 6px; padding: var(--space-4); border-left: 4px solid #3fbf73; background: var(--bg-200); }
+  .sd-feedback.miss { border-left-color: var(--danger); }
+  .sd-feedback p { margin: 0; }
+  /* a result, side by side */
+  .sd-vs { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .sd-vs th, .sd-vs td { padding: 8px 6px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; }
+  .sd-vs th { font-size: 12px; color: var(--ink-muted); text-transform: uppercase; letter-spacing: .05em; border-top: 0; }
+  .sd-vs td.ok { color: #3fbf73; white-space: nowrap; }
+  .sd-vs td.miss { color: var(--danger); white-space: nowrap; }
+  .sd-vs td small { color: var(--ink-muted); }
+  .sd-banner { font-family: var(--font-display); font-size: 26px; text-transform: uppercase; color: var(--volt-text, var(--volt)); }
+  .sd-toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 1300; padding: 10px 16px; background: var(--volt); color: var(--on-volt, #000); font-weight: 700; box-shadow: 0 6px 24px rgba(0,0,0,.4); max-width: calc(100vw - 32px); }
+  .sd-form { display: grid; gap: var(--space-3); max-width: 520px; }
+  .sd-form input { min-height: 44px; font-size: 16px; }
+  .sd-link { font-family: var(--font-mono); font-size: 12px; word-break: break-all; padding: 10px; background: var(--bg-100); }
+  @media (max-width: 620px) { .sd-score { grid-template-columns: 1fr auto 1fr; padding: var(--space-4); } .sd-score .vs { font-size: 32px; } .sd-q b { font-size: 24px; } .sd-opts { grid-template-columns: 1fr; } }
+</style>
+
+<div class="sd" id="sd">
+  <div class="sd-bar">
+    <span class="sd-live" id="sdLive"></span>
+    <div class="row">
+      <button class="small" type="button" id="sdHome" data-t>Duels</button>
+      <button class="small" type="button" data-settings data-t>Settings</button>
+      <button class="small" type="button" data-fullscreen>Full screen</button>
+    </div>
+  </div>
+  <div id="sdMain"></div>
+</div>
+
+</main>
+</div>
+<script src="/static/common.js"></script>
+<script src="/static/backup.js"></script>
+
+<script>window.SORA_DUEL_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_DUEL_TOOL = "study-duel"; window.SORA_DUEL_DECKS = ["geography", "chemistry"];</script>
+<script src="/static/study/geography.js"></script>
+<script src="/static/study/chemistry.js"></script>
+<script src="/static/study/books-lang.js"></script>
+<script src="/static/duel/game.js"></script>
+
+</body>
+</html>

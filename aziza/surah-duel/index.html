@@ -75,7 +75,8 @@
   
   
 <style>
-  /* Surah Duel: the duels between two people, kept online (static/duel/game.js). Cards like Study Quest's Home, each with its colour. */
+  /* Surah Duel and Study Duel: the duels between two people, kept online (static/duel/game.js). Cards like Study Quest's Home, each with
+     its colour. */
   .sd { display: grid; gap: var(--space-4); }
   .sd-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); }
   .sd-live { font-size: 13px; color: var(--ink-muted); }
@@ -112,6 +113,8 @@
   .sd-list li > button { flex: none; white-space: nowrap; }
   .sd-ranges { display: grid; gap: 8px; }
   .sd-ranges button { justify-content: space-between; text-transform: none; letter-spacing: 0; }
+  .sd-ranges + .sd-ranges { margin-top: var(--space-3); }
+  .sd-deck { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-muted); }
   .sd-ar { font-family: "Amiri", "Noto Naskh Arabic", "Scheherazade New", serif; font-size: 1.15em; }
   /* a question */
   .sd-play { display: grid; gap: var(--space-4); max-width: 720px; }
@@ -152,8 +155,8 @@
   <div class="sd-bar">
     <span class="sd-live" id="sdLive"></span>
     <div class="row">
-      <button class="small" type="button" id="sdHome">Duels</button>
-      <button class="small" type="button" data-settings>Settings</button>
+      <button class="small" type="button" id="sdHome" data-t>Duels</button>
+      <button class="small" type="button" data-settings data-t>Settings</button>
       <button class="small" type="button" data-fullscreen>Full screen</button>
     </div>
   </div>
@@ -165,8 +168,9 @@
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
 
-<script>window.SORA_DUEL_URL = "https://tiluser.org/tg/ameen_bot/webhook";</script>
+<script>window.SORA_DUEL_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_DUEL_TOOL = "surah-duel"; window.SORA_DUEL_DECKS = ["surahs"];</script>
 <script src="/static/study/surahs.js"></script>
+<script src="/static/study/books-lang.js"></script>
 <script src="/static/duel/game.js"></script>
 
 </body>

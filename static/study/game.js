@@ -3,33 +3,7 @@
    puts it on a review schedule; a chapter ends with a boss round of questions from all its lists. Points raise your
    rank. Books come from study/*.js and from list files imported in Memory Palace. Everything is kept in this browser. */
 "use strict";
-// ---------- a book in the app's language (lang.js) ----------
-// A book can carry its texts again in Russian: any of its objects (the book, a chapter, a stage, a card) may have "ru", whose fields
-// replace the English ones. English terms written [[term]] show in brackets on the cards and in the explanations, and are left out of
-// the questions and answers, so they are never what's tested. A card keeps the bracketed version in withTerms, for showing.
-(() => {
-  const lang = window.SoraLang?.lang || "en";
-  if (lang === "en") return;
-  const TERM = /\s*\[\[([^\]]+)\]\]/g;
-  const plain = (v) => (Array.isArray(v) ? v.map(plain) : typeof v === "string" ? v.replace(TERM, "") : v);
-  const withTerms = (v) => (Array.isArray(v) ? v.map(withTerms) : typeof v === "string" ? v.replace(TERM, " ($1)") : v);
-  function localize(o) {
-    if (Array.isArray(o)) return o.forEach(localize);
-    if (!o || typeof o !== "object") return;
-    const mine = o[lang];
-    if (mine && typeof mine === "object" && !Array.isArray(mine)) {
-      const shown = {};
-      for (const [k, v] of Object.entries(mine)) {
-        o[k] = k === "why" ? withTerms(v) : plain(v);
-        if (k !== "why" && JSON.stringify(o[k]) !== JSON.stringify(withTerms(v))) shown[k] = withTerms(v);
-      }
-      if (Object.keys(shown).length) o.withTerms = shown;
-      delete o[lang];
-    }
-    for (const v of Object.values(o)) if (v && typeof v === "object") localize(v);
-  }
-  localize(window.StudyBooks || []);
-})();
+// the books are put into the app's language by study/books-lang.js, loaded before this file
 const StudyCore = (() => {
   const DAY = 864e5, PASS = 0.8, KEY = window.SORA_BOOK ? `sora.studyQuest.${window.SORA_BOOK}.v1` : "sora.studyQuest.v1", IMPORT_KEY = "sora.memoryPalace.imported.v1";
   // review gaps in days, capped at 12 so every passed stage comes back several times before the exam

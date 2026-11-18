@@ -2,9 +2,10 @@
    - A duel is the same 7 questions for both: whoever challenges picks the range (Juz 'Amma, the first 30 or all 114) and plays first.
      Points for each right answer and for speed; once a duel, "Double or nothing" on a question you're sure of (×2 if right, −100 if
      not). Up to two "revenge" questions bring back surahs either of you missed lately, worth double.
-   - The two of you share a room on the server where the user's bot runs (server/duel_room.py in Sora's repository). This page reads it
-     when it opens and every few seconds while it's open, so each sees what the other has done; a challenge or a result from the other
-     shows up by itself, with a chime. What can't be sent yet waits on the phone and goes when it can.
+   - The two of you share a room on the server where the user's bot runs (server/duel_room.py in Sora's repository). Nobody has to be
+     online at the same time (the user, 18.11.2026): a challenge is sent once the challenger has played their part, with their score, and
+     waits for the other, who sees it, and the score to beat, whenever they open the app. The page reads the room when it opens and
+     every few seconds while it's open, so it's always up to date. What can't be sent yet waits on the phone and goes when it can.
    - A phone joins the room once, with the invite link (…/surah-duel/#join=CODE). Opening that link again takes one's place back.
    The surahs, their Arabic and meanings come from Surah Numbers (study/surahs.js). */
 "use strict";
@@ -85,7 +86,7 @@
   }
   function live(ok, why = "") {
     liveEl.className = `sd-live ${ok ? "on" : "off"}`;
-    liveEl.textContent = !me ? "" : ok ? "Live: you see each other's duels as they happen" : `Offline (${why || "no connection"}): what you do is kept here and sent when it can`;
+    liveEl.textContent = !me ? "" : ok ? "Up to date" : `Offline (${why || "no connection"}): what you do is kept here and sent when it can`;
   }
   // a write: tried now, and kept on the phone until it's through
   async function send(body) {
@@ -121,7 +122,7 @@
     if (!p) return;
     const fresh = [];
     for (const d of room.duels) {
-      if (d.by === p.id && !seen.has(d.id)) fresh.push([d.id, `${p.name} challenged you: ${RANGES[d.range][2]}`]);
+      if (d.by === p.id && d.results[p.id] && !seen.has(d.id)) fresh.push([d.id, `${p.name} challenged you: ${RANGES[d.range][2]}, ${d.results[p.id].points} points to beat`]);
       if (d.results[p.id] && d.by === me.id && !seen.has(`${d.id}:${p.id}`)) {
         const mine = d.results[me.id]?.points, theirs = d.results[p.id].points;
         fresh.push([`${d.id}:${p.id}`, mine === undefined ? `${p.name} played your duel` : `${p.name} played your duel: you ${mine}, ${p.name} ${theirs}`]);
@@ -249,8 +250,9 @@
     if (!room || room.members.length < 2) { invite(); return; }
     screen = "home";
     const p = partner(), { wins, draws } = tally(), { streak, right } = together();
-    const mine = (d) => d.results[me.id], theirs = (d) => d.results[p.id];
-    const turn = room.duels.filter((d) => !mine(d)).reverse();
+    const mine = (d) => d.results[me.id], theirs = (d) => d.results[p.id], rightOf = (r) => r.answers.filter((a) => a.ok).length;
+    // the other's challenges, once they've played their part (their score is the one to beat); their answers stay hidden until you've played
+    const turn = room.duels.filter((d) => !mine(d) && d.by !== me.id && theirs(d)).reverse();
     const waiting = room.duels.filter((d) => mine(d) && !theirs(d)).reverse();
     const done = finished().reverse();
     const learn = missedByBoth();
@@ -265,9 +267,11 @@
           el("span", { class: "sd-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, Math.round((right / GOAL) * 100))}%` })))),
       el("div", { class: "sd-grid" },
         turn.length ? box("sd-turn", "Your turn", `${turn.length} duel${turn.length === 1 ? "" : "s"} waiting for you`,
-          el("ul", { class: "sd-list" }, ...turn.slice(0, 6).map((d) => el("li", {}, el("span", {}, `${nameOf(d.by)} · ${RANGES[d.range][2]} `, el("small", {}, when(d.at))), btn("Play ▶", () => play(d), true, "small"))))) : "",
+          el("ul", { class: "sd-list" }, ...turn.slice(0, 6).map((d) => el("li", {},
+            el("span", {}, `${nameOf(d.by)} challenged you · ${RANGES[d.range][2]} `, el("br"), el("b", {}, `${nameOf(d.by)}: ${rightOf(theirs(d))} of ${d.qs.length} right, ${theirs(d).points} points`), " ",
+              el("small", {}, when(theirs(d).at))), btn("Beat it ▶", () => play(d), true, "small"))))) : "",
         box("sd-new", "New duel", "Challenge " + p.name,
-          el("p", { class: "hint" }, "You play first; then it's waiting for them. Pick the surahs it's on:"),
+          el("p", { class: "hint" }, `You play first. When you've finished, ${p.name} gets the challenge with your score to beat, whenever they next open the app. Pick the surahs it's on:`),
           el("div", { class: "sd-ranges" }, ...Object.entries(RANGES).map(([k, [, , label, about]]) => btn(`${label} · ${about}`, () => challenge(k), false)))),
         waiting.length ? box("sd-wait", `Waiting for ${p.name}`, `${waiting.length} duel${waiting.length === 1 ? "" : "s"} sent`,
           el("ul", { class: "sd-list" }, ...waiting.slice(0, 6).map((d) => el("li", {}, el("span", {}, `${RANGES[d.range][2]} · you ${mine(d).points} `, el("small", {}, when(mine(d).at))), btn("See", () => result(d), false, "small"))))) : "",
@@ -322,12 +326,9 @@
     }
     return { id: Date.now().toString(36) + rnd(46656).toString(36).padStart(3, "0"), range, qs: shuffle(qs) };
   }
+  // a new duel is played first by whoever makes it; it's sent, with their result, only when they've finished (giving up sends nothing)
   function challenge(range) {
-    const d = makeDuel(range);
-    room.duels.push({ ...d, by: me.id, at: Date.now(), results: {} });
-    keep(ROOM_KEY, room);
-    send({ op: "duel", room: me.room, me: me.id, duel: d });
-    play(room.duels[room.duels.length - 1]);
+    play({ ...makeDuel(range), by: me.id, at: Date.now(), results: {} });
   }
 
   // ---------- playing a duel ----------
@@ -348,12 +349,12 @@
     let i = 0, points = 0, betUsed = false, timer = null;
     const answers = [], start = Date.now();
     const hud = el("div", { class: "sd-hud" }), clock = el("div", { class: "sd-clock" }, el("i")), body = el("div", { class: "sd-play" });
-    const other = duel.by === me.id ? partner() : room.members.find((m) => m.id === duel.by);
+    const other = duel.by === me.id ? partner() : room.members.find((m) => m.id === duel.by), toBeat = duel.by !== me.id ? duel.results[duel.by]?.points : null;
     view(el("div", { class: "sd-play" }, hud, clock, body, el("div", { class: "row" }, btn("Give up", () => { clearInterval(timer); home(); }, false, "link"))));
     function ask() {
       const q = duel.qs[i], limit = q.t === "order" ? TIME_ORDER : TIME, began = performance.now();
       let bet = false, picked = [], over = false;
-      hud.replaceChildren(el("span", {}, `Question ${i + 1} of ${duel.qs.length}`), el("span", {}, `vs ${other?.name || "?"}`), el("span", {}, `${points} points`));
+      hud.replaceChildren(el("span", {}, `Question ${i + 1} of ${duel.qs.length}`), el("span", {}, toBeat == null ? `vs ${other?.name || "?"}` : `${other?.name || "?"}: ${toBeat} to beat`), el("span", {}, `${points} points`));
       const opts = q.o.map((n, k) => btn(optionText(q, n), () => pick(k), false));
       const betBtn = betUsed ? "" : btn("Double or nothing: ×2 if right, −100 if not", () => { bet = !bet; betBtn.classList.toggle("on", bet); }, false, "small sd-bet");
       body.replaceChildren(el("div", { class: "sd-q" }, q.x ? el("span", { class: "tag" }, "Revenge ×2") : "", el("small", {}, LABEL[q.t]), prompt(q),
@@ -403,10 +404,13 @@
     }
     function done() {
       const r = { answers, points, ms: Math.min(Date.now() - start, 3600000) };
-      const d = room.duels.find((x) => x.id === duel.id);
+      let d = room.duels.find((x) => x.id === duel.id);
+      const fresh = !d;           // a new challenge: it goes now, with this result
+      if (fresh) { d = duel; room.duels.push(d); }
       d.results[me.id] = { ...r, at: Date.now() };
       keep(ROOM_KEY, room);
-      send({ op: "result", room: me.room, me: me.id, duel: duel.id, result: r });
+      if (fresh) { outbox.push({ op: "duel", room: me.room, me: me.id, duel: { id: d.id, range: d.range, qs: d.qs } }); keep(OUT_KEY, outbox); }
+      send({ op: "result", room: me.room, me: me.id, duel: d.id, result: r });
       result(d);
     }
     ask();

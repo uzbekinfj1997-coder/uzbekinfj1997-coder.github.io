@@ -130,6 +130,26 @@
   .sq-meter { height: 8px; background: var(--bg-100); }
   .sq-meter i { display: block; height: 100%; background: var(--volt); }
   .sq-streak { display: grid; justify-items: center; }
+  /* coins (an app with a club): the balance and the tier on Home, linking to the club on the duel page; a round's coins on its result */
+  .sq-top:has(.sq-coins) { grid-template-columns: 1fr auto auto auto; }
+  .sq-coins { display: grid; justify-items: center; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, #ffc83d 55%, var(--line)); color: inherit; text-decoration: none; }
+  .sq-coins b { font-family: var(--font-mono); font-size: 22px; color: #e0a800; }
+  .sq-coins small { color: var(--ink-muted); font-size: 12px; }
+  .sq-coined { margin: var(--space-2) 0; }
+  .sq-coined b { font-family: var(--font-mono); color: #e0a800; }
+  /* Reviews (the apps with coins): a bar above the chapters, and a page of its own */
+  .sq-revtile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3); width: 100%; height: auto; margin-top: var(--space-6);
+    padding: var(--space-3) var(--space-4); text-align: left; text-transform: none; letter-spacing: 0; border-radius: 0; border-left: 4px solid var(--signal); }
+  .sq-revtile.due { background: color-mix(in srgb, var(--signal) 12%, transparent); }
+  .sq-revsign { display: grid; place-items: center; width: 40px; height: 40px; font-size: 20px; background: color-mix(in srgb, var(--signal) 25%, var(--bg-100)); }
+  .sq-revtext { display: grid; gap: 2px; }
+  .sq-revtext b { font-family: var(--font-display); font-size: 15px; text-transform: uppercase; }
+  .sq-revtext small { color: var(--ink-muted); font-weight: 400; }
+  .sq-revgo { font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--signal); }
+  .sq-revlist { margin: var(--space-2) 0 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+  .sq-revlist li { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: 6px 0; border-bottom: 1px solid var(--line); }
+  @media (max-width: 760px) { .sq-top:has(.sq-coins) { grid-template-columns: 1fr auto; }
+    .sq-top .sq-coins { grid-column: 1 / -1; grid-auto-flow: column; justify-content: start; gap: var(--space-3); align-items: baseline; } }
   .sq-streak b { font-family: var(--font-mono); font-size: 40px; line-height: 44px; color: var(--volt-text, var(--volt)); }
   .sq-plan { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: baseline; padding: var(--space-3) var(--space-6); background: var(--bg-200); border-left: 4px solid #ffc83d; }
   .sq-plan b { font-family: var(--font-display); text-transform: uppercase; }
@@ -322,6 +342,8 @@
 </div>
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
+<script>window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/maryamxon/study-duel/";</script>
+<script src="/static/coins.js"></script>
 
 <script src="/static/palace/core.js"></script>
 <script>window.SORA_BOOK = "geography";</script>

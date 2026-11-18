@@ -77,8 +77,8 @@
   
   
 <style>
-  /* Surah Duel and Study Duel: the duels between two people, kept online (static/duel/game.js). Cards like Study Quest's Home, each with
-     its colour. */
+  /* Surah Duel and Study Duel: duels between the players of a room (up to ten), kept online (static/duel/game.js), with the room's coins.
+     Cards like Study Quest's Home, each with its colour. */
   .sd { display: grid; gap: var(--space-4); }
   .sd-bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); }
   .sd-live { font-size: 13px; color: var(--ink-muted); }
@@ -162,6 +162,40 @@
   .sd-form { display: grid; gap: var(--space-3); max-width: 520px; }
   .sd-form input { min-height: 44px; font-size: 16px; }
   .sd-link { font-family: var(--font-mono); font-size: 12px; word-break: break-all; padding: 10px; background: var(--bg-100); }
+  /* the room's coins (static/coins.js): the purse and the tier under the scoreboard; the wallet, the rewards and the Hall of Fame */
+  .sd-coins { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); padding: var(--space-3) var(--space-6); background: var(--bg-200); border-left: 4px solid #ffc83d; }
+  .sd-purse, .sd-tier { display: grid; gap: 2px; }
+  .sd-tier { flex: 1; min-width: 180px; }
+  .sd-purse small, .sd-tier small { color: var(--ink-muted); font-size: 12px; }
+  .sd-purse b { font-family: var(--font-mono); font-size: 26px; color: #e0a800; }
+  .sd-tier b { font-family: var(--font-display); font-size: 17px; text-transform: uppercase; }
+  .sd-tier .sd-meter { flex: none; width: 100%; }
+  .sd-tier .sd-meter i, .sd-reward .sd-meter i { background: #ffc83d; }
+  .sd-coins .row { gap: 8px; flex-wrap: wrap; }
+  .sd-coined { font-family: var(--font-mono); font-weight: 700; color: #e0a800; }
+  .sd-purse-box { --c: #ffc83d; }
+  .sd-purse-box > b { font-family: var(--font-mono); font-size: 26px; color: #e0a800; }
+  .sd-ledger li b { font-family: var(--font-mono); color: #3fbf73; white-space: nowrap; }
+  .sd-ledger li.spent b { color: var(--danger); }
+  .sd-rewards li { flex-wrap: wrap; }
+  .sd-reward { display: grid; gap: 4px; flex: 1 1 180px; min-width: 0; }
+  .sd-reward .sd-meter { flex: none; width: 100%; min-width: 0; height: 6px; }
+  .sd-fame { --c: #ffc83d; }
+  .sd-board li.me { font-weight: 700; }
+  .sd-place { display: inline-block; min-width: 1.6em; font-family: var(--font-mono); }
+  .sd-num { font-family: var(--font-mono); white-space: nowrap; }
+  .sd-tiers { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
+  .sd-tiers span { display: grid; font-weight: 600; }
+  .sd-tiers small { color: var(--ink-muted); font-family: var(--font-mono); font-weight: 400; }
+  /* the room of up to ten: its players, the link for one more, whom a duel is for */
+  .sd-club { --c: var(--ink-muted); }
+  .sd-members { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+  .sd-members small { margin-left: 6px; color: var(--ink-muted); }
+  .sd-invite summary { cursor: pointer; color: var(--ink-muted); font-size: 14px; }
+  .sd-invite[open] { display: grid; gap: 8px; }
+  .sd-clublink { font-family: var(--font-mono); font-size: 12px; word-break: break-all; padding: 10px; background: var(--bg-100); }
+  .sd-whom { flex-wrap: wrap; }
+  @media (max-width: 620px) { .sd-coins { padding: var(--space-3) var(--space-4); } }
   @media (max-width: 620px) { .sd-score { grid-template-columns: 1fr auto 1fr; padding: var(--space-4); } .sd-score .vs { font-size: 32px; } .sd-q b { font-size: 24px; } .sd-opts { grid-template-columns: 1fr; } }
 </style>
 
@@ -181,6 +215,8 @@
 </div>
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
+<script>window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/robiyaxon/study-duel/";</script>
+<script src="/static/coins.js"></script>
 
 <script>window.SORA_DUEL_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_DUEL_TOOL = "study-duel"; window.SORA_DUEL_DECKS = ["anatomy", "orgchem", "pathology"];</script>
 <script src="/static/study/anatomy.js"></script>

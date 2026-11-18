@@ -1,7 +1,9 @@
 /* Study Quest: learn a book chapter by chapter as a game. Each list is a stage: look at the cards, then play the quiz
    (pick the right answer against the clock, with hearts and combos). 80 % passes the stage, opens the next one and
    puts it on a review schedule; a chapter ends with a boss round of questions from all its lists. Points raise your
-   rank. Books come from study/*.js and from list files imported in Memory Palace. Everything is kept in this browser. */
+   rank. Books come from study/*.js and from list files imported in Memory Palace. Everything is kept in this browser.
+   In the apps with a club (a duel page: Aziza's, Maryamxon's, Robiyaxon's, 18.11.2026) rounds also earn coins (roundCoins, sent by
+   static/coins.js to the club), and each subject has a Reviews section: what's due, played one after another, for double coins. */
 "use strict";
 // the books are put into the app's language by study/books-lang.js, loaded before this file
 const StudyCore = (() => {
@@ -182,6 +184,8 @@ window.StudyCore = StudyCore;
   const FRIENDS = window.SORA_STATIC === true;
   if (FRIENDS) for (const b of window.StudyBooks || []) delete b.plan;
   let prog = C.load(), books = C.books(), bookId = null, timer = null, screen = "home";
+  let reviewQueue = [];        // "Review all due": the due stages still to play, one after another
+  const CLUB = !!(window.SoraCoins && window.SORA_CLUB_URL);     // an app with a club (a duel page): rounds earn coins
   const commit = () => C.save(prog);
 
   const settings = setupSettings(root, "study-quest", [
@@ -565,11 +569,83 @@ window.StudyCore = StudyCore;
   }
   function stageNo(l) { return `${l.chapter.n}.${l.chapter.lists.indexOf(l) + 1}`; }
 
+  // ---------- Reviews: a section of its own in every subject of the apps with coins (the user, 18.11.2026), so the reviews get done ----------
+  // stages you've passed come back after 1, 3, 6 and 12 days; a review on its day earns double coins, and days in a row earn more
+  const dayKey = () => C.startOfDay(Date.now());
+  // days of reviews in a row: a day with nothing due (seen when the game was opened) doesn't break them; today counts once it's done
+  function reviewStreak() {
+    const did = new Set(prog.reviewDays || []), clear = new Set(prog.clearDays || []);
+    let d = dayKey(), n = 0;
+    if (!did.has(d)) d = C.startOfDay(d - C.DAY / 2);
+    while (did.has(d) || clear.has(d)) { if (did.has(d)) n++; d = C.startOfDay(d - C.DAY / 2); }
+    return n;
+  }
+  function markClear(lists, dueIds) {
+    const d = dayKey();
+    if (dueIds.length || !lists.some((l) => C.passed(prog, l.id)) || (prog.clearDays || []).includes(d)) return;
+    prog.clearDays = [...(prog.clearDays || []), d].slice(-60); commit();
+  }
+  function reviewTile(b, lists, dueIds) {
+    const passed = lists.filter((l) => C.passed(prog, l.id)), soonest = passed.map((l) => prog.lists[l.id].due).filter((t) => t && t > Date.now()).sort((x, y) => x - y)[0];
+    const status = dueIds.length ? tr("{n} due today{double}", { n: dueIds.length, double: CLUB ? tr(" · double coins") : "" })
+      : passed.length ? (soonest ? tr("Nothing due · next {when}", { when: when(soonest) }) : tr("Nothing due")) : tr("Pass a stage, and it comes back here");
+    return el("button", { type: "button", class: `sq-revtile ${dueIds.length ? "due" : ""}`.trim(), onclick: () => reviews(b), "aria-label": `${tr("Reviews")}. ${status}` },
+      el("span", { class: "sq-revsign" }, "🔁"), el("span", { class: "sq-revtext" }, el("b", {}, tr("Reviews")), el("small", {}, status)),
+      el("span", { class: "sq-revgo" }, dueIds.length ? tr("Today ▶") : "▶"));
+  }
+  function reviews(b) {
+    screen = "reviews";
+    const lists = allLists(b), due = C.due(prog, lists.map((l) => l.id)).map((id) => lists.find((l) => l.id === id));
+    const later = lists.filter((l) => C.passed(prog, l.id) && prog.lists[l.id].due > Date.now()).sort((x, y) => prog.lists[x.id].due - prog.lists[y.id].due).slice(0, 6);
+    const streak = reviewStreak();
+    view(head(tr("Reviews"), tr("Stages you've passed come back after 1, 3, 6 and 12 days, so you keep them. Play each again when it's due.")),
+      el("div", { class: "sq-dash" },
+        el("section", { class: "sq-box sq-due sq-wide" }, el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign" }, "🔁"), el("small", {}, tr("Due today"))),
+          el("b", { class: "sq-box-title" }, due.length ? tr("{n} {stages} to review", { n: due.length, stages: tr.n(due.length, "stage", "stages") }) : tr("Nothing due today")),
+          CLUB ? el("p", { class: "hint" }, tr("Reviews earn double coins, and 5 more each when done on time. Days in a row: {n} (7 in a row earns 20 more, 30 earns 100).", { n: streak })) : el("p", { class: "hint" }, tr("Days in a row: {n}", { n: streak })),
+          due.length ? el("div", { class: "row sq-act" }, btn(tr("Review all due ▶"), () => { reviewQueue = due.map((l) => l.id); quiz(b, due[0].chapter, due[0]); }, true)) : "",
+          due.length ? el("ul", { class: "sq-revlist" }, ...due.map((l) => el("li", {}, el("span", {}, el("b", {}, l.name), " ", el("small", { class: "hint" }, `${partName(b, l.chapter)} · ${tr("due {when}", { when: when(prog.lists[l.id].due) })}`)),
+            btn(tr("Play"), () => { reviewQueue = []; quiz(b, l.chapter, l); }, false, "small")))) : ""),
+        later.length ? el("section", { class: "sq-box sq-asked" }, el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign" }, "📅"), el("small", {}, tr("Coming up"))),
+          el("ul", { class: "sq-revlist" }, ...later.map((l) => el("li", {}, el("span", {}, l.name), el("small", { class: "hint" }, when(prog.lists[l.id].due)))))) : ""),
+      el("div", { class: "row sq-foot" }, btn(tr(onePart(b) ? "← Stages" : bySection(b) ? "← Sections" : "← Chapters"), home, false, "link")));
+  }
+  function coinBadge() {
+    const c = SoraCoins.balance(), t = SoraCoins.tierOf(c.earned);
+    return el("a", { class: "sq-coins", href: window.SORA_CLUB_PAGE || "#", title: tr("Your coins and tier: in the club, on the duel page") },
+      el("b", {}, `🪙 ${num(c.balance)}`), el("small", {}, `${t.icon} ${tr(t.name)}`));
+  }
+  // a round's coins: each right answer by how hard it was (typed 2, picked 1, true or false ½, scenarios and orders 1½) and by the clock
+  // (none ×0.75, 10 s ×1.25); a review that's due counts double, a replay of a stage already passed and not due a quarter. One-time
+  // extras: a first pass +10, three stars +10, a final round +30, a whole chapter or section +50; a review passed on its day +5; 7 days
+  // of reviews in a row +20, 30 days +100
+  function roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) {
+    const kind = (it) => C.kindOf(it), w = (it) => (kind(it) === "tf" ? 0.5 : ["case", "sort", "order"].includes(kind(it)) ? 1.5 : typed && kind(it) === "sentence" ? 2 : 1);
+    const t = Number(S.time);
+    let n = log.filter((x) => x.ok).reduce((s, x) => s + w(x.item), 0) * (t === 0 ? 0.75 : t <= 10 ? 1.25 : t >= 45 ? 0.9 : 1);
+    const review = !mix && wasDue;
+    if (review) n *= 2; else if (!mix && wasPassed) n *= 0.25;
+    const tag = `${b.id}:${id}`, where = mix ? tr("Mixed quiz") : l ? l.name : tr("Boss round"), out = [];
+    out.push({ id: `${tag}:${Date.now()}`, n: Math.round(n), why: `${where} · ${Math.round(score * 100)} %${review ? ` · ${tr("review")}` : ""}`, k: review ? "review" : "study" });
+    if (review && score >= C.PASS) {        // a review done (passed): 5 more, and a day of reviews towards the days in a row
+      out.push({ id: `${tag}:ontime:${dayKey()}`, n: 5, why: tr("Review on time: {stage}", { stage: where }), k: "review" });
+      prog.reviewDays = [...new Set([...(prog.reviewDays || []), dayKey()])].slice(-60);
+      const streak = reviewStreak();
+      if (streak === 7 || streak === 30) out.push({ id: `${b.id}:streak${streak}:${dayKey()}`, n: streak === 7 ? 20 : 100, why: tr("{n} days of reviews in a row", { n: streak }), k: "review" });
+    }
+    if (!mix && l && !wasPassed && C.passed(prog, id)) out.push({ id: `${tag}:pass`, n: 10, why: tr("First pass: {stage}", { stage: l.name }), k: "study" });
+    if (!mix && l && (prev?.stars || 0) < 3 && rec.stars === 3) out.push({ id: `${tag}:3stars`, n: 10, why: tr("Three stars: {stage}", { stage: l.name }), k: "study" });
+    if (!mix && !l && score >= C.PASS && !((prev?.best || 0) >= C.PASS)) out.push({ id: `${tag}:boss`, n: 30, why: tr("Final round passed: {part}", { part: partName(b, c) }), k: "study" });
+    if (!mix && c && !partWasDone && c.lists.every((x) => C.passed(prog, x.id))) out.push({ id: `${b.id}:done:${c.n}`, n: 50, why: tr("{part} finished", { part: partName(b, c) }), k: "study" });
+    return out.filter((e) => e.n > 0);
+  }
+
   function home() {
-    screen = "home"; books = C.books();
+    screen = "home"; books = C.books(); reviewQueue = [];        // "Review all due" lasts while its Next review buttons are followed
     const b = book(); bookId = b?.id;
     if (!b) return view(head("No books yet", "Import a list file in Memory Palace to study it here."));
     const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids);
+    if (CLUB) markClear(lists, dueIds);
     const streak = prog.streak.last >= C.startOfDay(Date.now()) - C.DAY ? prog.streak.days : 0;
     const one = onePart(b);     // a book in one part (Surah Numbers): its stages on Home, no chapters
     const pct = r.next ? Math.round(((prog.xp - r.from) / (r.next[0] - r.from)) * 100) : 100;
@@ -585,14 +661,16 @@ window.StudyCore = StudyCore;
         el("div", { class: "sq-rank" }, el("small", {}, tr("Rank")), el("b", {}, tr(r.name)), el("div", { class: "sq-meter" }, el("i", { style: `width:${pct}%` })),
           el("small", {}, r.next ? tr("{xp} / {next} points to {rank}", { xp: num(prog.xp), next: num(r.next[0]), rank: tr(r.next[1]) })
             : tr("{xp} {points}", { xp: num(prog.xp), points: tr.n(prog.xp, "points", "points") }))),
-        el("div", { class: "sq-streak" }, el("b", {}, String(streak)), el("small", {}, tr.n(streak, "days in a row", "days in a row")))),
+        el("div", { class: "sq-streak" }, el("b", {}, String(streak)), el("small", {}, tr.n(streak, "days in a row", "days in a row"))),
+        CLUB ? coinBadge() : ""),
       p ? el("section", { class: "sq-plan" }, el("b", {}, p.days > 0 ? `${p.days} day${p.days === 1 ? "" : "s"} to the exam` : p.days === 0 ? "The exam is today. Good luck!" : "The exam date has passed"),
         p.days > 0 ? el("span", {}, new Date(p.exam).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })) : "",
         el("span", { class: "sq-passed" }, p.left ? (planOn ? `Study Quest: ${p.total - p.left} of ${p.total} stages passed`
           : `${p.total - p.left} of ${p.total} stages passed · pass ${p.perDay} new stage${p.perDay === 1 ? "" : "s"} a day${p.days > 7 ? ", then use the last week for review" : ""}`) : `All ${p.total} stages passed: keep up the reviews`),
         p.days >= 0 && p.days <= 10 && p.total > p.left ? btn("Final sweep: review every passed stage", () => sweep(b), false, "small") : "") : "",
-      // the mixed quiz needs two chapters, so a book with one so far doesn't show it
-      dash(todayCard(b), markedCard(b), dueIds.length ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard(b)),
+      // the mixed quiz needs two chapters, so a book with one so far doesn't show it; in the apps with coins the reviews are the Reviews bar's
+      dash(todayCard(b), markedCard(b), dueIds.length && !CLUB ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard(b)),
+      CLUB ? reviewTile(b, lists, dueIds) : "",
       ...(one ? [el("div", { class: "sq-chapters-head" }, el("h3", {}, tr("Stages"))), ...stageBoard(b, b.chapters[0])] : [
       el("div", { class: "sq-chapters-head" }, el("h3", {}, partsName(b)),
         el("div", { class: "sq-legend" }, el("span", { class: "done" }, tr("✓ Done")), el("span", { class: "started" }, tr("In progress")), el("span", { class: "new" }, tr("Not started")))),
@@ -915,8 +993,18 @@ window.StudyCore = StudyCore;
     function finish() {
       screen = "result";
       const score = right.filter(Boolean).length / qs.length, s = C.stars(score);
+      // what the round changes, for its coins: was the stage passed or due before it (a review: due, and not played yet today, so a
+      // review missed and played again counts as an ordinary round), was its chapter done
+      const prev = prog.lists[id] ? { ...prog.lists[id] } : null, wasPassed = C.passed(prog, id);
+      const wasDue = prev?.due != null && prev.due <= Date.now() && !(prev.last >= C.startOfDay(Date.now()));
+      const partWasDone = !!c && c.lists.every((x) => C.passed(prog, x.id));
       // typed recall counts fully; so do stages of ordering, comparing, traps and scenarios (they test understanding)
       const mode = typed || items.every((it) => C.kindOf(it) !== "sentence") ? "recall" : "choice", before = C.rank(prog.xp).name, rec = C.record(prog, id, score, gained, Date.now(), mode);
+      const earned = CLUB ? roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) : [];
+      if (earned.length) SoraCoins.earn(earned);
+      const coins = earned.reduce((s2, e) => s2 + e.n, 0);
+      reviewQueue = reviewQueue.filter((x) => x !== id && C.due(prog, [x]).length);      // what's still due
+      const nextReview = l && reviewQueue.length ? allLists(b).find((x) => x.id === reviewQueue[0]) : null;
       for (const x of log) { const cid = cardId(b, x.item); if (cid) C.noteCard(prog, cid, x.ok); }
       commit();
       const after = C.rank(prog.xp).name, outOfHearts = right.length < qs.length;
@@ -927,6 +1015,10 @@ window.StudyCore = StudyCore;
           : tr("Passed by picking, which keeps it fresh: next review {when}. Play in Recall mode to move it to a longer gap.", { when: when(rec.due) })),
         el("div", { class: "sq-result" }, starRow(s), el("span", {}, tr("+{n} {points} · best combo {best}", { n: num(gained), points: tr.n(gained, "points", "points"), best })),
           after !== before ? el("b", { class: "sq-up" }, tr("New rank: {rank}!", { rank: tr(after) })) : ""),
+        CLUB ? el("p", { class: "sq-coined" }, el("b", {}, tr("🪙 +{n} coins", { n: coins })), " ",
+          el("small", { class: "hint" }, SoraCoins.balance().inClub ? earned.map((e) => e.why).slice(1).join(" · ")
+            : tr("They wait on this phone until you start or join your club, on the duel page."))) : "",
+        nextReview ? el("div", { class: "row" }, btn(tr("Next review ▶ ({n} left)", { n: reviewQueue.length }), () => quiz(b, nextReview.chapter, nextReview), true)) : "",
         log.length ? el("section", { class: "card" }, el("h3", {}, tr(missed.length ? "Look at these once more" : "Your answers")),
           FRIENDS ? "" : el("p", { class: "hint" }, "Unsure about any of them? “Ask about this” opens Telegram with the card written out; add your question and send it."),
           el("ul", { class: "sq-missed" }, ...[...log.filter((x) => !x.ok), ...log.filter((x) => x.ok)].map((x) => el("li", { class: x.ok ? "ok" : "miss" },

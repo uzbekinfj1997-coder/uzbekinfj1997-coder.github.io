@@ -1,4 +1,4 @@
-/* Duels: two people challenge each other, and see each other's duels and results. Surah Duel (Aziza's app) is on the surahs of the
+/* Duels: people challenge each other, and see each other's duels and results. Surah Duel (Aziza's app) is on the surahs of the
    Quran; Study Duel (Maryamxon's and Robiyaxon's apps, 18.11.2026) is on the app's own subjects (sites.json "duel"). Each is a DECK.
    - A duel is the same questions for both (7 in a quick one): whoever challenges picks the deck and range and plays first. Points for each right
      answer and for speed; once a duel, "Double or nothing" on a question you're sure of (×2 if right, −100 if not). Up to two
@@ -7,7 +7,12 @@
      at the same time: a challenge is sent once the challenger has played their part, with their score, and waits for the other, who
      sees it, and the score to beat, whenever they open the app. You can play your part before the other has even joined. The page
      reads the room when it opens and every few seconds while it's open. What can't be sent yet waits on the phone and goes when it can.
-   - A phone joins the room once, with the invite link (…/#join=CODE). Opening that link again takes one's place back.
+   - A phone joins the room once, with the invite link (…/#join=CODE), opened or pasted on the welcome screen. Opening that link again
+     takes one's place back.
+   - The room is the app's club (18.11.2026): up to ten players. A duel is for one of them ("to") or open to whoever plays it first;
+     with two, Home looks as it did for a pair. The club keeps everyone's coins (static/coins.js; Study Quest's rounds and the duels earn
+     them, the duels' worked out on the server): the purse and tier under the scoreboard, the Wallet, the Rewards (asked for here, given
+     in real life by the banker in Sora personal's Club Bank, who takes their coins off) and the Hall of Fame.
    - The decks: Surah Numbers' surahs (study/surahs.js: questions by number, next, first, order, Arabic, meaning), or a subject's
      cards (study/<book>.js, put into the app's language by study/books-lang.js): a question names its card ("stage#place") and each
      phone shows it in its own language. English terms in brackets show only after answering, never in a question.
@@ -278,7 +283,7 @@
   const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch { return d; } };
   const keep = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage full */ } };
   let me = read(ME_KEY, null);            // { room, id, name }: this phone's place in the room
-  let room = read(ROOM_KEY, null);        // the room as last read: { v, members, duels }
+  let room = read(ROOM_KEY, null);        // the room as last read: { v, members, duels, coins, totals, spent, rewards, asks, app }
   let outbox = read(OUT_KEY, []);         // writes not yet through
   // the other's duels and results already announced; null on a phone that has never looked at this room (it starts quietly)
   let seen = read(SEEN_KEY, null) && new Set(read(SEEN_KEY, []));
@@ -288,6 +293,28 @@
   const partner = () => room?.members.find((m) => m.id !== me?.id) || (room && me ? { id: me.id === "a" ? "b" : "a", name: T("your partner"), waiting: true } : null);
   const nameOf = (id) => (id === me?.id ? T("You") : room?.members.find((m) => m.id === id)?.name || "?");
   const duels = () => room.duels.filter(known);
+  // ---------- the club: up to ten players (18.11.2026); a duel is between two of them: whoever made it (by) and whoever it's for (to), or,
+  // when it's open, whoever plays it first ----------
+  const others = () => (room && me ? room.members.filter((m) => m.id !== me.id) : []);
+  const memberOf = (id) => room?.members.find((m) => m.id === id);
+  const CLUB = () => others().length > 1;            // more than a pair: a duel says whom it's for, and Home shows the club
+  const otherSide = (d) => d.to || Object.keys(d.results).find((x) => x !== d.by) || null;
+  const forMe = (d) => d.by !== me.id && (otherSide(d) ? otherSide(d) === me.id : true);     // made by another, for this player or open
+  // the one across from this player: who made it, or whom it's for; in a pair, the partner (once they've joined)
+  const oppOf = (d) => (d.by !== me.id ? d.by : otherSide(d) || (others().length === 1 ? others()[0].id : null));
+  const oppName = (d) => { const o = oppOf(d); return o ? memberOf(o)?.name || "?" : CLUB() ? T("anyone in the club") : partner().name; };
+  const isDone = (d) => { const o = otherSide(d); return !!o && !!d.results[d.by] && !!d.results[o]; };
+  // whom the next duel is for, in a club of three or more: one of the others, or anyone (null)
+  const TO_KEY = "sora.duel.to.v1";
+  const targetOk = () => { const t = read(TO_KEY, null); return t && others().some((m) => m.id === t) ? t : null; };
+  function whomChoice(redraw) {
+    const now = targetOk();
+    return el("div", { class: "set-choice sd-whom", role: "radiogroup", "aria-label": T("Whom to challenge") }, ...[[null, T("Anyone")], ...others().map((m) => [m.id, m.name])].map(([v, label]) => {
+      const b = el("button", { type: "button", class: v === now ? "on" : "", role: "radio", "aria-checked": String(v === now) }, label);
+      b.onclick = () => { keep(TO_KEY, v); redraw(); };
+      return b;
+    }));
+  }
   const view = (...kids) => main.replaceChildren(...kids);
   const btn = (label, onclick, primary = false, cls = "") => el("button", { type: "button", class: `${primary ? "primary" : ""} ${cls}`.trim(), onclick }, label);
   const box = (cls, label, head, ...rest) => el("section", { class: `sd-box ${cls}` }, el("small", {}, label), head ? el("b", {}, head) : "", ...rest);
@@ -325,7 +352,7 @@
   // ---------- the room on the server ----------
   async function call(params, body) {
     const q = new URLSearchParams({ duel: "1", ...params });
-    const r = await fetch(`${SERVER}?${q}`, body ? { method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "text/plain" } } : { cache: "no-store" });
+    const r = await fetch(`${SERVER}?${q}`, body ? { method: "POST", body: JSON.stringify({ ...body, app: window.SoraApp?.id }), headers: { "Content-Type": "text/plain" } } : { cache: "no-store" });
     let j = {};
     try { j = await r.json(); } catch { /* not JSON */ }
     if (!r.ok || !j.ok) { const e = new Error(j.error || T("the server answered {n}", { n: r.status })); e.status = r.status; throw e; }
@@ -333,7 +360,8 @@
   }
   function take(st) {
     if (!st || st.same || !st.members) return false;
-    room = { v: st.v, members: st.members, duels: st.duels };
+    room = { v: st.v, members: st.members, duels: st.duels, coins: st.coins || [], totals: st.totals || {}, spent: st.spent || [],
+      rewards: st.rewards || [], asks: st.asks || [], wins: st.wins || null, app: st.app || "" };
     keep(ROOM_KEY, room);
     return true;
   }
@@ -369,17 +397,18 @@
       if (e.status === 404) { me = null; keep(ME_KEY, null); toast(T("This duel room isn't on the server any more.")); home(); }
     } finally { polling = false; }
   }
-  // the other's new challenges and results: a chime and a line at the top, once each
+  // the others' new challenges and results (and who's joined): a chime and a line at the top, once each
   function announce() {
-    const p = partner();
-    if (!p || p.waiting) return;
-    const fresh = [];
-    if (!seen?.has(`joined:${p.id}`)) fresh.push([`joined:${p.id}`, room.duels.some((d) => d.by === me.id) ? T("{name} joined: your duels are waiting for them", { name: p.name }) : T("{name} joined", { name: p.name })]);
+    const fresh = [], club = CLUB();
+    for (const m of others()) if (!seen?.has(`joined:${m.id}`)) fresh.push([`joined:${m.id}`, !club && room.duels.some((d) => d.by === me.id)
+      ? T("{name} joined: your duels are waiting for them", { name: m.name }) : T(club ? "{name} joined the club" : "{name} joined", { name: m.name })]);
     for (const d of duels()) {
-      if (d.by === p.id && d.results[p.id] && !seen?.has(d.id)) fresh.push([d.id, T("{name} challenged you: {what}, {points} points to beat", { name: p.name, what: title(d), points: num(d.results[p.id].points) })]);
-      if (d.results[p.id] && d.by === me.id && !seen?.has(`${d.id}:${p.id}`)) {
-        const mine = d.results[me.id]?.points, theirs = d.results[p.id].points;
-        fresh.push([`${d.id}:${p.id}`, mine === undefined ? T("{name} played your duel", { name: p.name }) : T("{name} played your duel: you {mine}, {name} {theirs}", { name: p.name, mine: num(mine), theirs: num(theirs) })]);
+      if (forMe(d) && d.results[d.by] && !d.results[me.id] && !seen?.has(d.id)) fresh.push([d.id, T(d.to || !club ? "{name} challenged you: {what}, {points} points to beat"
+        : "{name} challenged anyone in the club: {what}, {points} points to beat", { name: nameOf(d.by), what: title(d), points: num(d.results[d.by].points) })]);
+      const o = otherSide(d);
+      if (d.by === me.id && o && d.results[o] && !seen?.has(`${d.id}:${o}`)) {
+        const mine = d.results[me.id]?.points, theirs = d.results[o].points, name = nameOf(o);
+        fresh.push([`${d.id}:${o}`, mine === undefined ? T("{name} played your duel", { name }) : T("{name} played your duel: you {mine}, {name} {theirs}", { name, mine: num(mine), theirs: num(theirs) })]);
       }
     }
     if (!fresh.length) return;
@@ -393,6 +422,9 @@
   function refresh() {
     if (screen === "home") home();
     else if (screen === "result" && current) result(current);
+    else if (screen === "wallet") wallet();
+    else if (screen === "rewards") rewards();
+    else if (screen === "fame") fame();
   }
 
   // ---------- joining: a new room, or the invite link ----------
@@ -410,6 +442,8 @@
     };
     return el("form", { class: "sd-form", onsubmit: submit }, input, el("div", { class: "row" }, el("button", { type: "submit", class: "primary" }, label)), msg);
   }
+  // coins earned on this phone before it was in a club go to the club as soon as it's joined
+  const sendWaiting = () => { if (COINS?.balance().waiting) COINS.flush().then((ok) => ok && poll(true)); };
   function welcome() {
     screen = "welcome";
     view(el("div", { class: "sd-grid" },
@@ -419,8 +453,23 @@
         el("p", { class: "hint" }, T("Start a room here, then send the invite link to the one you want to duel with. You only do this once.")),
         nameForm(T("Start a duel room"), async (name) => {
           const st = await call({}, { op: "create", name });
-          me = { room: st.room, id: st.me, name }; keep(ME_KEY, me); seen = new Set(); keep(SEEN_KEY, []); take(st); live(true); home();
-        }))));
+          me = { room: st.room, id: st.me, name }; keep(ME_KEY, me); seen = new Set(); keep(SEEN_KEY, []); take(st); live(true); home(); sendWaiting();
+        })),
+      pasteBox()));
+  }
+  // an invite sent in a message: opening the link joins; so does pasting it here (rather than starting a room of your own)
+  function pasteBox() {
+    const input = el("input", { type: "text", placeholder: T("Paste the invite link here"), "aria-label": T("The invite link"), autocomplete: "off" });
+    const msg = el("p", { class: "hint" });
+    const go = (e) => {
+      e?.preventDefault();
+      const code = (input.value.match(/join=([A-Za-z0-9_-]{24})/) || [])[1];
+      if (!code) { msg.textContent = T("That isn't an invite link: it ends in #join= and a code."); return; }
+      joinScreen(code);
+    };
+    return box("sd-wait sd-wide sd-paste", T("Have an invite?"), T("Join the club you were invited to"),
+      el("p", {}, T("If someone sent you their invite link, open it, or paste it here: you'll be in their club, with them, instead of starting one of your own.")),
+      el("form", { class: "sd-form", onsubmit: go }, input, el("div", { class: "row" }, el("button", { type: "submit" }, T("Open the invite")))), msg);
   }
   async function joinScreen(code) {
     screen = "join";
@@ -438,41 +487,74 @@
       keep(SEEN_KEY, seen && [...seen]);
       take(r); history.replaceState(null, "", location.pathname); live(true); home();
       announce();       // the duels already waiting for the one who's just joined
+      sendWaiting();
     };
     if (st.members.length < 2) {
       return view(box("sd-turn", GAME, T("{name} invites you to a duel room", { name: st.members[0].name }),
         el("p", {}, SURAH_ONLY ? "You'll challenge each other on the surahs and see each other's results as they come in." : T("You'll challenge each other on {subjects} and see each other's results as they come in.", { subjects: deckNames() })),
         nameForm(T("Join"), async (name) => done(await call({}, { op: "join", room: code, name }), name))));
     }
-    // the room has its two: one of them is opening it on a new phone
-    view(box("sd-turn", GAME, T("Which of you is this?"), el("p", {}, T("This room is {a} and {b}'s. Pick your name to carry on here.", { a: st.members[0].name, b: st.members[1].name })),
-      el("div", { class: "row" }, ...st.members.map((m) => btn(T("I'm {name}", { name: m.name }), async () => done(await call({}, { op: "join", room: code, as: m.id }), m.name, true), true)))));
+    // a room with players already: one of them on a new phone takes their place back, or someone new joins (up to ten)
+    const full = st.members.length >= 10;
+    view(el("div", { class: "sd-grid" },
+      box("sd-turn", GAME, T("Which of you is this?"), el("p", {}, T("In this club: {names}. One of them, on a new phone? Pick your name to carry on here.", { names: st.members.map((m) => m.name).join(", ") })),
+        el("div", { class: "row" }, ...st.members.map((m) => btn(T("I'm {name}", { name: m.name }), async () => done(await call({}, { op: "join", room: code, as: m.id }), m.name, true), true)))),
+      full ? box("sd-wait", GAME, T("The club is full"), el("p", {}, T("It has ten players, the most a club can have.")))
+        : box("sd-new", GAME, T("New here?"), el("p", {}, T("Type your name to join: you'll challenge each other and see each other's results as they come in.")),
+          nameForm(T("Join"), async (name) => done(await call({}, { op: "join", room: code, name }), name)))));
   }
+  const inviteLink = () => `${location.origin}${location.pathname}#join=${me.room}`;
+  async function shareLink() {
+    try { if (navigator.share) return await navigator.share({ title: GAME, text: T("{name} invites you to {game}", { name: me.name, game: GAME }), url: inviteLink() }); } catch { return; }
+    copyLink();
+  }
+  const copyLink = () => navigator.clipboard?.writeText(inviteLink()).then(() => toast(T("The link is copied: paste it in a message")), () => {});
   function inviteBox() {
-    const link = `${location.origin}${location.pathname}#join=${me.room}`;
-    const share = async () => {
-      try { if (navigator.share) return await navigator.share({ title: GAME, text: T("{name} invites you to {game}", { name: me.name, game: GAME }), url: link }); } catch { return; }
-      copy();
-    };
-    const copy = () => navigator.clipboard?.writeText(link).then(() => toast(T("The link is copied: paste it in a message")), () => {});
     return box("sd-wait sd-wide", T("Invite your partner"), T("Waiting for them to join"),
       el("p", {}, T("Send them this link (Telegram, WhatsApp or any message). When they open it and type their name, they're in, and they'll find your duels waiting with your scores. You can start playing now.")),
-      el("div", { class: "sd-link" }, link),
-      el("div", { class: "row" }, btn(T("Share the link"), share), btn(T("Copy"), copy)),
-      el("p", { class: "hint" }, T("Keep the link between the two of you: anyone with it could take the second place.")));
+      el("div", { class: "sd-link" }, inviteLink()),
+      el("div", { class: "row" }, btn(T("Share the link"), shareLink), btn(T("Copy"), copyLink)),
+      el("p", { class: "hint" }, T("Keep the link to the people you want in the club: anyone with it can join (up to ten).")));
+  }
+  // the room's players with their tiers, and the link for one more
+  function clubBox() {
+    if (room.members.length < 2) return "";
+    const earned = (m) => (m.id === me.id ? COINS?.balance().earned : room.totals?.[m.id]?.earned) || 0;
+    return box("sd-club sd-wide", T("Your club"), T("{n} of 10 players", { n: room.members.length }),
+      el("ul", { class: "sd-members" }, ...room.members.map((m) => el("li", {}, el("b", {}, m.id === me.id ? T("{name} (you)", { name: m.name }) : m.name),
+        COINS ? el("small", {}, tierLabel(COINS.tierOf(earned(m)).name)) : ""))),
+      room.members.length < 10 ? el("details", { class: "sd-invite" }, el("summary", {}, T("Invite someone else")),
+        el("p", { class: "hint" }, T("Send them this link. When they open it and type their name, they're in: you can challenge them, and they you.")),
+        el("div", { class: "sd-clublink" }, inviteLink()),
+        el("div", { class: "row" }, btn(T("Share the link"), shareLink), btn(T("Copy"), copyLink))) : "");
+  }
+
+  // another club's invite on a phone that's in one: join that one instead (what was done in this one stays there), or stay
+  function switchScreen(code) {
+    screen = "switch";
+    const names = (room?.members || [{ name: me.name }]).map((m) => m.name).join(", ");
+    const msg = el("p", { class: "hint" });
+    const go = async () => {
+      if (!(await flush())) { msg.textContent = T("Something from this phone hasn't reached your club yet: try again when it's online."); return; }
+      me = null; room = null; outbox = []; seen = null;
+      for (const k of [ME_KEY, ROOM_KEY, OUT_KEY, SEEN_KEY]) keep(k, null);
+      joinScreen(code);
+    };
+    view(el("div", { class: "sd-grid" }, box("sd-turn sd-wide sd-switch", GAME, T("An invite to another club"),
+      el("p", {}, T("This phone is in a club with {names}. The link you opened is for another club. Join that one instead? What you've done in this one stays there.", { names })),
+      el("div", { class: "row" }, btn(T("Join the other club"), go, true), btn(T("Stay in this one"), () => { history.replaceState(null, "", location.pathname); home(); })), msg)));
   }
 
   // ---------- the numbers: score, streak, the week, what you both missed ----------
-  const finished = () => (room.members.length < 2 ? [] : duels().filter((d) => room.members.every((m) => d.results[m.id])));
+  // this player's duels that both sides have played
+  const finished = () => duels().filter((d) => isDone(d) && (d.by === me.id || otherSide(d) === me.id));
   function tally() {
-    const wins = {}, p = partner();
-    for (const m of [...room.members, p]) wins[m.id] = 0;
-    let draws = 0;
+    let won = 0, lost = 0, draws = 0;
     for (const d of finished()) {
-      const a = d.results[me.id].points, b = d.results[p.id].points;
-      if (a > b) wins[me.id]++; else if (b > a) wins[p.id]++; else draws++;
+      const a = d.results[me.id].points, b = d.results[oppOf(d)].points;
+      if (a > b) won++; else if (b > a) lost++; else draws++;
     }
-    return { wins, draws };
+    return { won, lost, draws };
   }
   const dayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
   function together() {
@@ -493,14 +575,14 @@
     const out = [];
     for (const d of [...finished()].reverse()) d.qs.forEach((q, i) => {
       const key = `${d.deck || "surahs"}|${deckOf(d).subject(q)}`;
-      if (room.members.every((m) => !d.results[m.id].answers[i].ok) && !out.includes(key)) out.push(key);
+      if ([d.by, otherSide(d)].every((x) => !d.results[x].answers[i].ok) && !out.includes(key)) out.push(key);
     });
     return out.slice(0, limit).map((k) => { const [deck, s] = k.split("|"); return [DECKS[deck], deck === "surahs" ? Number(s) : s]; });
   }
-  // revenge: what either of you missed lately in this deck
+  // revenge: what was missed lately in this deck, in this player's duels
   function missedLately(deck) {
     const out = new Set();
-    for (const d of duels().filter((x) => (x.deck || "surahs") === deck).slice(-12)) d.qs.forEach((q, i) => {
+    for (const d of duels().filter((x) => (x.deck || "surahs") === deck && (x.by === me.id || forMe(x))).slice(-12)) d.qs.forEach((q, i) => {
       if (Object.values(d.results).some((r) => !r.answers[i]?.ok)) out.add(deckOf(d).revenge(q));
     });
     return out;
@@ -509,62 +591,71 @@
   // ---------- Home ----------
   function home() {
     current = null;
-    if (!me) {
-      const code = (location.hash.match(/join=([A-Za-z0-9_-]{24})/) || [])[1];
-      return code ? joinScreen(code) : welcome();
-    }
+    const code = (location.hash.match(/join=([A-Za-z0-9_-]{24})/) || [])[1];
+    if (!me) return code ? joinScreen(code) : welcome();
+    // an invite link opened on a phone that's in a club already: another club's, or (opened again) its own
+    if (code && code !== me.room) return switchScreen(code);
+    if (code) history.replaceState(null, "", location.pathname);
     if (!room) { view(el("p", { class: "hint" }, T("Opening the duel room…"))); poll(true); return; }
     screen = "home";
-    const p = partner(), { wins, draws } = tally(), { streak, right } = together();
-    const mine = (d) => d.results[me.id], theirs = (d) => d.results[p.id], rightOf = (r) => r.answers.filter((a) => a.ok).length;
-    // the other's challenges, once they've played their part (their score is the one to beat); their answers stay hidden until you've played
-    const turn = duels().filter((d) => !mine(d) && d.by !== me.id && theirs(d)).reverse();
-    const waiting = duels().filter((d) => mine(d) && !theirs(d)).reverse();
+    const club = CLUB(), p = partner(), { won, lost, draws } = tally(), { streak, right } = together(), goal = club ? 50 * room.members.length : GOAL;
+    const rightOf = (r) => r.answers.filter((a) => a.ok).length;
+    // the challenges for this player, once their maker has played (the score to beat); the maker's answers stay hidden until you've played
+    const turn = duels().filter((d) => forMe(d) && !d.results[me.id] && d.results[d.by]).reverse();
+    const waiting = duels().filter((d) => d.results[me.id] && !isDone(d)).reverse();
     const done = finished().reverse();
     const learn = missedByBoth();
     const n = (k, one, many) => T("{n} {what}", { n: k, what: plural(k, one, many) });
+    const target = targetOk(), whom = club ? (target ? memberOf(target).name : T("anyone in the club")) : p.name;
     view(
       el("section", { class: "sd-score" },
         el("div", { class: "who" }, el("small", {}, T("You")), el("b", {}, me.name)),
-        el("div", { class: "vs" }, `${wins[me.id]} – ${wins[p.id]}`, el("small", {}, draws ? T("duels won · {n} drawn", { n: draws }) : T("duels won"))),
-        el("div", { class: "who" }, el("small", {}, T("Your partner")), el("b", {}, p.waiting ? T("Not joined yet") : p.name)),
+        el("div", { class: "vs" }, `${won} – ${lost}`, el("small", {}, club ? (draws ? T("won – lost · {n} drawn", { n: draws }) : T("won – lost")) : draws ? T("duels won · {n} drawn", { n: draws }) : T("duels won"))),
+        club ? el("div", { class: "who" }, el("small", {}, T("Your club")), el("b", {}, n(room.members.length, "player", "players")))
+          : el("div", { class: "who" }, el("small", {}, T("Your partner")), el("b", {}, p.waiting ? T("Not joined yet") : p.name)),
         el("div", { class: "sd-together" },
-          el("span", {}, T("Together streak: "), el("b", {}, n(streak, "day", "days"))),
-          el("span", {}, T("This week, between you: "), el("b", {}, T("{right} / {goal} right answers", { right, goal: GOAL }))),
-          el("span", { class: "sd-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, Math.round((right / GOAL) * 100))}%` })))),
+          club ? "" : el("span", {}, T("Together streak: "), el("b", {}, n(streak, "day", "days"))),
+          el("span", {}, T(club ? "This week, in the club: " : "This week, between you: "), el("b", {}, T("{right} / {goal} right answers", { right, goal }))),
+          el("span", { class: "sd-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, Math.round((right / goal) * 100))}%` })))),
+      coinStrip(),
       el("div", { class: "sd-grid" },
         p.waiting ? inviteBox() : "",
         turn.length ? box("sd-turn", T("Your turn"), T("{n} waiting for you", { n: n(turn.length, "duel", "duels") }),
           el("ul", { class: "sd-list" }, ...turn.slice(0, 6).map((d) => el("li", {},
-            el("span", {}, `${T("{name} challenged you", { name: nameOf(d.by) })} · ${title(d)} `, el("br"),
-              el("b", {}, T("{name}: {right} of {all} right, {points} points", { name: nameOf(d.by), right: rightOf(theirs(d)), all: d.qs.length, points: num(theirs(d).points) })), " ",
-              el("small", {}, when(theirs(d).at)), d.cfg ? el("br") : "", d.cfg ? el("small", { class: "sd-cfg" }, setupLine(d.cfg)) : ""), btn(T("Beat it ▶"), () => play(d), true, "small"))))) : "",
-        box("sd-new", T("New duel"), T("Challenge {name}", { name: p.name }),
-          el("p", { class: "hint" }, T("You play first. When you've finished, {name} gets the challenge with your score to beat, whenever they next open the app. Pick what it's on:", { name: p.name })),
+            el("span", {}, `${T(d.to || !club ? "{name} challenged you" : "{name} challenged anyone in the club", { name: nameOf(d.by) })} · ${title(d)} `, el("br"),
+              el("b", {}, T("{name}: {right} of {all} right, {points} points", { name: nameOf(d.by), right: rightOf(d.results[d.by]), all: d.qs.length, points: num(d.results[d.by].points) })), " ",
+              el("small", {}, when(d.results[d.by].at)), d.cfg ? el("br") : "", d.cfg ? el("small", { class: "sd-cfg" }, setupLine(d.cfg)) : ""), btn(T("Beat it ▶"), () => play(d), true, "small"))))) : "",
+        box("sd-new", T("New duel"), club ? T("Challenge someone") : T("Challenge {name}", { name: p.name }),
+          club ? whomChoice(home) : "",
+          el("p", { class: "hint" }, club ? T("You play first. When you've finished, {name} gets the challenge with your score to beat. Pick what it's on:", { name: whom })
+            : T("You play first. When you've finished, {name} gets the challenge with your score to beat, whenever they next open the app. Pick what it's on:", { name: p.name })),
           lastSetup() ? el("div", { class: "row" }, btn(T("Same again: {what}", { what: `${lastSetup().deckName} · ${setupLine(lastSetup().cfg)}` }), () => challenge(lastSetup().deck, "custom", lastSetup().cfg), true)) : "",
           el("div", { class: "row" }, btn(T("Set up a duel…"), () => setup(), true, "sd-setup-btn")),
           el("p", { class: "hint" }, T("Or a quick one: {setup}", { setup: setupLine(DEFAULT) })),
           ...Object.values(DECKS).map((deck) => el("div", { class: "sd-ranges" }, Object.keys(DECKS).length > 1 ? el("small", { class: "sd-deck" }, deck.name) : "",
             ...deck.ranges.map(([k, label]) => btn(label, () => challenge(deck.id, k), false))))),
-        waiting.length ? box("sd-wait", T("Waiting for {name}", { name: p.name }), T("{n} sent", { n: n(waiting.length, "duel", "duels") }),
-          el("ul", { class: "sd-list" }, ...waiting.slice(0, 6).map((d) => el("li", {}, el("span", {}, `${title(d)} · ${T("you {points}", { points: num(mine(d).points) })} `, el("small", {}, when(mine(d).at))), btn(T("See"), () => result(d), false, "small"))))) : "",
+        waiting.length ? box("sd-wait", club ? T("Waiting for the others") : T("Waiting for {name}", { name: p.name }), T("{n} sent", { n: n(waiting.length, "duel", "duels") }),
+          el("ul", { class: "sd-list" }, ...waiting.slice(0, 6).map((d) => el("li", {}, el("span", {}, `${title(d)} · ${club ? `${T("for {name}", { name: oppName(d) })} · ` : ""}${T("you {points}", { points: num(d.results[me.id].points) })} `,
+            el("small", {}, when(d.results[me.id].at))), btn(T("See"), () => result(d), false, "small"))))) : "",
         done.length ? box("sd-done", T("Results"), T("The latest duels"),
           el("ul", { class: "sd-list" }, ...done.slice(0, 8).map((d) => {
-            const a = mine(d).points, b = theirs(d).points;
-            return el("li", {}, el("span", {}, `${a > b ? "🏆 " : ""}${T("You {a} – {b} {name}", { a: num(a), b: num(b), name: p.name })}${b > a ? " 🏆" : ""} `, el("small", {}, `${title(d)} · ${when(Math.max(mine(d).at, theirs(d).at))}`)), btn(T("See"), () => result(d), false, "small"));
+            const o = oppOf(d), a = d.results[me.id].points, b = d.results[o].points;
+            return el("li", {}, el("span", {}, `${a > b ? "🏆 " : ""}${T("You {a} – {b} {name}", { a: num(a), b: num(b), name: nameOf(o) })}${b > a ? " 🏆" : ""} `,
+              el("small", {}, `${title(d)} · ${when(Math.max(d.results[me.id].at, d.results[o].at))}`)), btn(T("See"), () => result(d), false, "small"));
           }))) : "",
         learn.length ? box("sd-learn", T("Learn together"), learn[0][0].learnTitle,
           el("ul", { class: "sd-list" }, ...learn.map(([deck, s]) => el("li", {}, ...deck.learnRow(s)))),
-          el("p", { class: "hint" }, T("They come back as revenge questions in your next duels."))) : ""));
+          el("p", { class: "hint" }, T("They come back as revenge questions in your next duels."))) : "",
+        clubBox()));
   }
 
   // ---------- making a duel: 7 questions, the same for both ----------
   // a new duel is played first by whoever makes it; it's sent, with their result, only when they've finished (giving up sends nothing)
-  function challenge(deck, range, cfg = null) {
-    const setupOf = cfg || { ...DEFAULT, parts: [range] };
+  function challenge(deck, range, cfg = null, to = undefined) {
+    const setupOf = cfg || { ...DEFAULT, parts: [range] }, whom = to !== undefined ? to : CLUB() ? targetOk() : null;
     const qs = DECKS[deck].make(setupOf, setupOf.revenge === 0 ? new Set() : missedLately(deck));
     if (!qs.length) { toast(T("Nothing to ask in that choice: pick more parts or kinds.")); return; }
-    play({ id: Date.now().toString(36) + rnd(46656).toString(36).padStart(3, "0"), ...(deck !== "surahs" ? { deck } : {}), range: cfg ? "custom" : range, cfg: setupOf, qs, by: me.id, at: Date.now(), results: {} });
+    play({ id: Date.now().toString(36) + rnd(46656).toString(36).padStart(3, "0"), ...(deck !== "surahs" ? { deck } : {}), range: cfg ? "custom" : range, cfg: setupOf, qs, by: me.id, ...(whom ? { to: whom } : {}), at: Date.now(), results: {} });
   }
   const lastSetup = () => { const l = read(SETUP_KEY, null); return l && DECKS[l.deck] ? { ...l, deckName: DECKS[l.deck].name } : null; };
 
@@ -590,6 +681,7 @@
       const ex = deck.example ? T("front: {front} · back: {back}", { front: cut(deck.example[0], 40), back: cut(deck.example[1], 30) }) : "";
       const parts = cfg.parts?.length ? cfg.parts : ["all"];
       view(el("div", { class: "sd-grid" }, box("sd-new sd-wide", T("New duel"), T("Set up a duel"),
+        CLUB() ? row(T("Whom to challenge"), whomChoice(draw), T("Anyone: whoever plays it first takes it")) : "",
         Object.keys(DECKS).length > 1 ? row(T("Subject"), choice(Object.values(DECKS).map((d) => [d.id, d.name]), deckId, (v) => { deckId = v; cfg = { ...cfg, parts: ["all"], kinds: [] }; draw(); })) : "",
         row(T("Parts"), ticks(deck.parts, parts, (v) => {
           const now = parts.filter((x) => x !== "all");
@@ -629,7 +721,8 @@
     let i = 0, points = 0, betUsed = !cfg.bet, timer = null;
     const answers = [], start = Date.now();
     const hud = el("div", { class: "sd-hud" }), clock = el("div", { class: "sd-clock" }, el("i")), body = el("div", { class: "sd-play" });
-    const other = duel.by === me.id ? partner() : room.members.find((m) => m.id === duel.by), toBeat = duel.by !== me.id ? duel.results[duel.by]?.points : null;
+    const other = duel.by === me.id ? (duel.to ? memberOf(duel.to) : others().length === 1 ? others()[0] : CLUB() ? { name: T("anyone in the club") } : partner())
+      : memberOf(duel.by), toBeat = duel.by !== me.id ? duel.results[duel.by]?.points : null;
     view(el("div", { class: "sd-play" }, hud, clock, body, el("div", { class: "row" }, btn(T("Give up"), () => { clearInterval(timer); home(); }, false, "link"))));
     function ask() {
       const q = duel.qs[i], order = deck.isOrder(q), typing = cfg.mode === "typing" && deck.typeable?.(q), began = performance.now();
@@ -698,7 +791,7 @@
       if (fresh) { d = duel; room.duels.push(d); }
       d.results[me.id] = { ...r, at: Date.now() };
       keep(ROOM_KEY, room);
-      if (fresh) { outbox.push({ op: "duel", room: me.room, me: me.id, duel: { id: d.id, ...(d.deck ? { deck: d.deck } : {}), range: d.range, ...(d.cfg ? { cfg: d.cfg } : {}), qs: d.qs } }); keep(OUT_KEY, outbox); }
+      if (fresh) { outbox.push({ op: "duel", room: me.room, me: me.id, duel: { id: d.id, ...(d.deck ? { deck: d.deck } : {}), range: d.range, ...(d.cfg ? { cfg: d.cfg } : {}), ...(d.to ? { to: d.to } : {}), qs: d.qs } }); keep(OUT_KEY, outbox); }
       send({ op: "result", room: me.room, me: me.id, duel: d.id, result: r });
       result(d);
     }
@@ -708,20 +801,98 @@
   // ---------- a duel's result, side by side ----------
   function result(duel) {
     screen = "result"; current = duel;
-    const d = room.duels.find((x) => x.id === duel.id) || duel, p = partner(), a = d.results[me.id], b = d.results[p.id], deck = deckOf(d);
+    const d = room.duels.find((x) => x.id === duel.id) || duel, o = oppOf(d), oName = oppName(d), a = d.results[me.id], b = o ? d.results[o] : null, deck = deckOf(d);
     if (!a) return play(d);           // not played yet here: nothing of theirs to see first
+    // this duel's coins for this player: the right answers, and the win or the draw (worked out on the server)
+    const got = (room.coins || []).filter((e) => e.m === me.id && [`duel:${d.id}:${me.id}`, `win:${d.id}`, `draw:${d.id}:${me.id}`].includes(e.id)).reduce((s, e) => s + e.n, 0);
     const cell = (r, k) => r ? el("td", { class: r.answers[k].ok ? "ok" : "miss" }, `${r.answers[k].ok ? "✓" : "✗"} `,
       el("small", {}, `${T("{n} s", { n: (r.answers[k].ms / 1000).toFixed(1) })}${r.answers[k].d ? ` · ${T("×2 bet")}` : ""}`),
       r.answers[k].y ? el("small", { class: "sd-typed" }, ` “${cut(r.answers[k].y, 30)}”`) : "") : el("td", {}, el("small", {}, "…"));
     view(el("div", { class: "sd-grid" },
-      box("sd-done sd-wide", `${title(d)} · ${when(d.at)}`, b ? T("You {a} – {b} {name}", { a: num(a.points), b: num(b.points), name: p.name }) : T("You {points} · waiting for {name}", { points: num(a.points), name: p.name }),
+      box("sd-done sd-wide", `${title(d)} · ${when(d.at)}`, b ? T("You {a} – {b} {name}", { a: num(a.points), b: num(b.points), name: oName }) : T("You {points} · waiting for {name}", { points: num(a.points), name: oName }),
         d.cfg ? el("small", { class: "sd-cfg" }, setupLine(d.cfg)) : "",
-        b ? el("div", { class: "sd-banner" }, a.points > b.points ? T("You won!") : b.points > a.points ? T("{name} won this one", { name: p.name }) : T("A draw"))
-          : el("p", { class: "hint" }, T("{name}'s answers show here as soon as they've played: this page changes by itself.", { name: p.name })),
+        b ? el("div", { class: "sd-banner" }, a.points > b.points ? T("You won!") : b.points > a.points ? T("{name} won this one", { name: oName }) : T("A draw"))
+          : el("p", { class: "hint" }, o ? T("{name}'s answers show here as soon as they've played: this page changes by itself.", { name: oName })
+            : T("The answers of whoever takes it show here as soon as they've played: this page changes by itself.")),
+        got ? el("p", { class: "sd-coined" }, T("🪙 +{n} coins", { n: num(got) })) : "",
         el("table", { class: "sd-vs" },
-          el("thead", {}, el("tr", {}, el("th", {}, T("Question")), el("th", {}, T("Answer")), el("th", {}, T("You")), el("th", {}, p.name))),
+          el("thead", {}, el("tr", {}, el("th", {}, T("Question")), el("th", {}, T("Answer")), el("th", {}, T("You")), el("th", {}, o ? oName : "…"))),
           el("tbody", {}, ...d.qs.map((q, k) => el("tr", {}, el("td", {}, q.x ? "↺ " : "", deck.summary(q)), el("td", {}, deck.answer(q)), cell(a, k), cell(b, k))))),
-        el("div", { class: "row" }, btn(T("Rematch"), () => challenge(d.deck || "surahs", d.range, d.range === "custom" ? d.cfg : null), true), btn(T("Duels"), home)))));
+        el("div", { class: "row" }, btn(T("Rematch"), () => challenge(d.deck || "surahs", d.range, d.range === "custom" ? d.cfg : null, CLUB() ? o : undefined), true), btn(T("Duels"), home)))));
+  }
+
+  // ---------- coins: the wallet, the rewards and the Hall of Fame ----------
+  // coins.js keeps them in the room on the server; Study Quest's rounds and the duels earn them, and the banker (Sora personal's Club bank)
+  // gives the rewards, taking their coins off. The tier goes by everything ever earned, so a reward doesn't lower it
+  const COINS = window.SoraCoins;
+  const tierLabel = (name) => `${COINS.ICON[name]} ${T(name)}`;
+  const meter = (f) => el("span", { class: "sd-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.max(0, Math.min(100, Math.round(f * 100)))}%` }));
+  function coinStrip() {
+    if (!COINS) return "";
+    const c = COINS.balance(), t = COINS.tierOf(c.earned);
+    return el("section", { class: "sd-coins" },
+      el("div", { class: "sd-purse" }, el("small", {}, T("Your coins")), el("b", {}, `🪙 ${num(c.balance)}`)),
+      el("div", { class: "sd-tier" }, el("small", {}, T("Tier")), el("b", {}, tierLabel(t.name)), t.next ? meter((c.earned - t.from) / (t.next[0] - t.from)) : "",
+        el("small", {}, t.next ? T("{n} more to {tier}", { n: num(t.next[0] - c.earned), tier: tierLabel(t.next[1]) }) : T("The highest tier!"))),
+      el("div", { class: "row" }, btn(T("Wallet"), wallet, false, "small"), btn(T("Rewards"), rewards, false, "small"), btn(T("Hall of Fame"), fame, true, "small")));
+  }
+  // the server's reasons are in English: put into the app's language here (Study Quest's come in it already)
+  const whyText = (w) => { const m = /^Duel: (\d+) of (\d+) right$/.exec(w); return m ? T("Duel: {right} of {all} right", { right: m[1], all: m[2] }) : w === "Duel won" || w === "Duel drawn" ? T(w) : w; };
+  function wallet() {
+    screen = "wallet";
+    const c = COINS.balance(), t = COINS.tierOf(c.earned);
+    const rows = [...(room.coins || []).filter((e) => e.m === me.id).map((e) => ({ at: e.at, n: e.n, what: whyText(e.why) })),
+      ...(room.spent || []).filter((e) => e.m === me.id).map((e) => ({ at: e.at, n: -e.n, what: T("Reward: {what}", { what: T(e.what) }) }))].sort((x, y) => y.at - x.at);
+    view(el("div", { class: "sd-grid" }, box("sd-purse-box sd-wide", T("Wallet"), `🪙 ${num(c.balance)}`,
+      el("p", {}, T("Earned {earned} · spent on rewards {spent} · tier {tier}", { earned: num(c.earned), spent: num(c.spent), tier: tierLabel(t.name) })),
+      c.waiting ? el("p", { class: "hint" }, T("{n} of them are still on this phone: they go to the club when it's online.", { n: num(c.waiting) })) : "",
+      rows.length ? el("ul", { class: "sd-list sd-ledger" }, ...rows.slice(0, 80).map((r) => el("li", { class: r.n < 0 ? "spent" : "" },
+        el("span", {}, r.what, " ", el("small", {}, when(r.at))), el("b", {}, r.n < 0 ? `−${num(-r.n)}` : `+${num(r.n)}`))))
+        : el("p", { class: "hint" }, T("Nothing yet: coins come from Study Quest rounds, reviews and duels.")),
+      el("p", { class: "hint" }, T("How coins are earned: each right answer, more for typing and for a short clock; reviews on their day count double; a first pass, three stars, a final round and a finished chapter earn more. Duels: your right answers, 10 more for a win, 5 each for a draw. At most 300 a day.")),
+      el("div", { class: "row" }, btn(T("Rewards"), rewards), btn(T("Duels"), home, false, "link")))));
+  }
+  function rewards() {
+    screen = "rewards";
+    const c = COINS.balance(), list = room.rewards || [], asked = new Set((room.asks || []).filter((a) => a.m === me.id).map((a) => a.r));
+    view(el("div", { class: "sd-grid" }, box("sd-purse-box sd-wide", T("Rewards"), T("You have 🪙 {n}", { n: num(c.balance) }),
+      list.length ? el("ul", { class: "sd-list sd-rewards" }, ...list.map((r) => el("li", {},
+        el("span", { class: "sd-reward" }, el("b", {}, T(r.name)), el("small", {}, `🪙 ${num(r.price)}`), meter(c.balance / r.price)),
+        asked.has(r.id) ? btn(T("Asked ✓ · cancel"), () => ask(r.id, true), false, "small")
+          : c.balance >= r.price ? btn(T("I'd like this"), () => ask(r.id), true, "small")
+          : el("small", { class: "hint" }, T("{n} more to go", { n: num(r.price - c.balance) })))))
+        : el("p", { class: "hint" }, T("No rewards yet: the banker adds them, with their prices.")),
+      el("p", { class: "hint" }, T("Ask for one, and the banker sees it, gives it to you in real life and takes its coins off here. Your tier stays: it goes by everything you've ever earned.")),
+      el("div", { class: "row" }, btn(T("Wallet"), wallet), btn(T("Duels"), home, false, "link")))));
+  }
+  async function ask(rid, cancel = false) {
+    // shown at once; sent now, or kept until it's through
+    room.asks = cancel ? (room.asks || []).filter((a) => !(a.m === me.id && a.r === rid)) : [...(room.asks || []), { id: "here", m: me.id, r: rid, at: Date.now() }];
+    rewards();
+    toast(cancel ? T("Cancelled") : T("Asked: the banker will see it"));
+    await send({ op: "ask", room: me.room, me: me.id, reward: rid, ...(cancel ? { cancel: true } : {}) });
+    refresh();
+  }
+  const mondayOf = () => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.getTime(); };
+  function fame() {
+    screen = "fame";
+    const since = mondayOf(), mine = COINS.balance();
+    const earnedOf = (m) => (m.id === me.id ? mine.earned : room.totals?.[m.id]?.earned || 0);
+    const weekOf = (m) => (room.coins || []).filter((e) => e.m === m.id && e.at >= since).reduce((s, e) => s + e.n, 0) + (m.id === me.id ? mine.waiting : 0);
+    // duels won: the server's count (a room lets its oldest duels go), or, from a phone that hasn't read it yet, the duels it has
+    const winsOf = (m) => room.wins ? room.wins[m.id] || 0 : room.duels.filter((d) => isDone(d) && (d.by === m.id || otherSide(d) === m.id))
+      .filter((d) => d.results[m.id].points > d.results[d.by === m.id ? otherSide(d) : d.by].points).length;
+    const rank = (f) => room.members.map((m) => ({ m, n: f(m) })).sort((x, y) => y.n - x.n);
+    const place = (k, n) => (n > 0 && k < 3 ? ["🥇", "🥈", "🥉"][k] : `${k + 1}.`);
+    const board = (label, head, rows, show) => box("sd-fame", label, head, el("ol", { class: "sd-list sd-board" }, ...rows.map((r, k) => el("li", { class: r.m.id === me.id ? "me" : "" },
+      el("span", {}, el("b", { class: "sd-place" }, place(k, r.n)), " ", r.m.id === me.id ? T("{name} (you)", { name: r.m.name }) : r.m.name), el("span", { class: "sd-num" }, show(r))))));
+    view(el("div", { class: "sd-grid" },
+      board(T("Hall of Fame"), T("This week's coins (from Monday)"), rank(weekOf), (r) => `🪙 ${num(r.n)}`),
+      board(T("All time"), T("Everything earned, and the tier"), rank(earnedOf), (r) => `${tierLabel(COINS.tierOf(r.n).name)} · 🪙 ${num(r.n)}`),
+      board(T("Duels"), T("Duels won"), rank(winsOf), (r) => num(r.n)),
+      box("sd-fame sd-wide", T("Tiers"), T("By everything you've ever earned: spending on rewards doesn't lower them"),
+        el("div", { class: "sd-tiers" }, ...COINS.TIERS.map(([from, name]) => el("span", {}, tierLabel(name), el("small", {}, `🪙 ${num(from)}`)))),
+        el("div", { class: "row" }, btn(T("Wallet"), wallet), btn(T("Duels"), home, false, "link")))));
   }
 
   $("sdHome").onclick = home;
@@ -732,5 +903,5 @@
   if (me) poll(true);
   setInterval(() => poll(), POLL);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(true); });
-  window.addEventListener("hashchange", () => { if (!me) home(); });
+  window.addEventListener("hashchange", () => { if (!me || /join=/.test(location.hash)) home(); });
 })();

@@ -71,7 +71,7 @@
   </div>
   
   
-  <div class="page-title"><div class="ov-label">Aziza</div><h1 data-t>Surah Duel</h1><p data-t>Challenge each other on the surahs: the same 7 questions for both of you, and each other&#39;s results as they come in.</p></div>
+  <div class="page-title"><div class="ov-label">Aziza</div><h1 data-t>Surah Duel</h1><p data-t>Challenge each other on the surahs: a duel set up your way, the same questions for both of you, and each other&#39;s results as they come in.</p></div>
   
   
 <style>
@@ -144,6 +144,18 @@
   .sd-vs td.miss { color: var(--danger); white-space: nowrap; }
   .sd-vs td small { color: var(--ink-muted); }
   .sd-banner { font-family: var(--font-display); font-size: 26px; text-transform: uppercase; color: var(--volt-text, var(--volt)); }
+  /* setting a duel up: a row for each choice */
+  .sd-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-2) var(--space-4); padding: 10px 0; border-top: 1px solid var(--line); }
+  .sd-row-label { display: grid; gap: 2px; min-width: 150px; max-width: 360px; }
+  .sd-row-label small { color: var(--ink-muted); font-size: 12px; line-height: 1.4; }
+  .sd-ticks { display: flex; flex-wrap: wrap; gap: 6px; max-width: 640px; }
+  .sd-ticks button { min-height: 32px; height: auto; padding: 4px 10px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+  .sd-ticks button.on { background: var(--volt); color: var(--on-volt, #000); border-color: var(--volt); }
+  .sd-cfg { color: var(--ink-muted); font-size: 12px; }
+  .sd-typing { display: grid; gap: var(--space-3); }
+  .sd-type { min-height: 52px; font-size: 20px; padding: 10px 14px; }
+  .sd-type.good { border-color: #3fbf73; } .sd-type.bad { border-color: var(--danger); }
+  .sd-typed { display: block; color: var(--ink-muted); }
   .sd-toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); z-index: 1300; padding: 10px 16px; background: var(--volt); color: var(--on-volt, #000); font-weight: 700; box-shadow: 0 6px 24px rgba(0,0,0,.4); max-width: calc(100vw - 32px); }
   .sd-form { display: grid; gap: var(--space-3); max-width: 520px; }
   .sd-form input { min-height: 44px; font-size: 16px; }

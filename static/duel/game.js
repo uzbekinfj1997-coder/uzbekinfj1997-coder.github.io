@@ -1,6 +1,6 @@
 /* Duels: two people challenge each other, and see each other's duels and results. Surah Duel (Aziza's app) is on the surahs of the
    Quran; Study Duel (Maryamxon's and Robiyaxon's apps, 18.11.2026) is on the app's own subjects (sites.json "duel"). Each is a DECK.
-   - A duel is the same 7 questions for both: whoever challenges picks the deck and range and plays first. Points for each right
+   - A duel is the same questions for both (7 in a quick one): whoever challenges picks the deck and range and plays first. Points for each right
      answer and for speed; once a duel, "Double or nothing" on a question you're sure of (×2 if right, −100 if not). Up to two
      "revenge" questions bring back what either of you missed lately, worth double.
    - The two share a room on the server where the user's bot runs (server/duel_room.py in Sora's repository). Nobody has to be online
@@ -11,6 +11,9 @@
    - The decks: Surah Numbers' surahs (study/surahs.js: questions by number, next, first, order, Arabic, meaning), or a subject's
      cards (study/<book>.js, put into the app's language by study/books-lang.js): a question names its card ("stage#place") and each
      phone shows it in its own language. English terms in brackets show only after answering, never in a question.
+   - Each duel is set up by whoever challenges (18.11.2026): the subject and its parts, how many questions (5 to 20), multiple choice or
+     typing (questions with no word to type stay multiple choice), front → back, back → front or both, the clock, the kinds of question,
+     Double or nothing and revenge on or off. It travels with the duel as "cfg", so both play the same; "Same again" repeats the last.
    The wording goes through tr() (lang.js), so the Russian app is in Russian. */
 "use strict";
 (() => {
@@ -26,6 +29,25 @@
   const rnd = (n) => Math.floor(Math.random() * n);
   const shuffle = (a) => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const cut = (s, n = 70) => (String(s).length > n ? `${String(s).slice(0, n - 1)}…` : String(s));
+  // a typed answer: capital letters, accents, punctuation and small typos forgiven (a letter or two, more in long answers); numbers exact
+  const plainText = (s) => String(s).toLowerCase().replace(/ё/g, "е").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/\(.*?\)/g, " ")
+    .replace(/[^a-z0-9а-я\u0600-\u06ff]+/g, " ").trim();
+  function distance(a, b) {
+    const d = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      let prev = d[0]; d[0] = i;
+      for (let j = 1; j <= b.length; j++) { const keep = d[j]; d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1)); prev = keep; }
+    }
+    return d[b.length];
+  }
+  function typedRight(typed, answers) {
+    const t = plainText(typed).replace(/^(the|al|an|ar|as|at|ash|az|ad|adh) /, "");
+    if (!t) return false;
+    return answers.some((a) => {
+      const forms = [a, String(a).split(/[,(]/)[0]].map((x) => plainText(x).replace(/^(the|al|an|ar|as|at|ash|az|ad|adh) /, ""));
+      return forms.some((f) => (/^\d+$/.test(f) ? t === f : t === f || distance(t.replace(/ /g, ""), f.replace(/ /g, "")) <= (f.length <= 5 ? 1 : f.length <= 12 ? 2 : 3)));
+    });
+  }
 
   // ---------- the decks ----------
   // Surah Numbers' surahs: questions by number (as before 18.11.2026's Study Duel, unchanged: the duels already played read the same)
@@ -36,20 +58,31 @@
     });
     const S = (n) => SURAHS[n - 1];
     const RANGES = { amma: [78, 114, "Juz 'Amma", "surahs 78–114"], first30: [1, 30, "The first 30", "surahs 1–30"], all: [1, 114, "All 114", "the whole Quran"] };
-    function near(n, lo, hi, k, not = []) {
-      const out = [];
+    // the parts a duel can be on: the three above, and Surah Numbers' stages of ten
+    const PARTS = [["all", "All 114"], ["amma", "Juz 'Amma (78–114)"], ["first30", "Surahs 1–30"],
+      ...Array.from({ length: 12 }, (_, k) => [`t${k + 1}`, `Surahs ${k * 10 + 1}–${Math.min(114, k * 10 + 10)}`])];
+    const numbersOf = (key) => {
+      const r = RANGES[key] || (/^t(\d+)$/.test(key) ? [(Number(key.slice(1)) - 1) * 10 + 1, Math.min(114, Number(key.slice(1)) * 10)] : [1, 114]);
+      return Array.from({ length: r[1] - r[0] + 1 }, (_, k) => r[0] + k);
+    };
+    const KINDS = [["num", "Number (name → number)"], ["name", "Name (number → name)"], ["after", "Which comes next"], ["first", "Which comes first"],
+      ["order", "Putting in order"], ["arabic", "Arabic → name"], ["meaning", "Meaning → name"]];
+    // other surahs close to n (within the duel's surahs when it can), for the wrong choices: close ones make it about knowing the exact one
+    function near(n, lo, hi, k, not = [], pool = null) {
+      const out = [], inPool = (m) => (pool ? pool.has(m) : m >= lo && m <= hi);
       for (let d = 1; out.length < k && d < 114; d++) for (const m of shuffle([n - d, n + d])) {
-        if (out.length < k && m >= 1 && m <= 114 && !not.includes(m) && m !== n && (m >= lo && m <= hi || d > 6)) out.push(m);
+        if (out.length < k && m >= 1 && m <= 114 && !not.includes(m) && m !== n && (inPool(m) || d > 6)) out.push(m);
       }
       return out;
     }
     const plainMeaning = (n) => S(n).meaning && S(n).meaning.toLowerCase().replace(/[^a-z]/g, "") !== S(n).name.toLowerCase().replace(/^(al|an|ar|as|at|ash|az|ad|adh)-/, "").replace(/[^a-z]/g, "");
-    function question(t, s, lo, hi) {
-      if (t === "num" || t === "name" || t === "arabic" || t === "meaning") { const o = shuffle([s, ...near(s, lo, hi, 3)]); return { t, s, o, a: o.indexOf(s) }; }
-      if (t === "after") { const next = s + 1, o = shuffle([next, ...near(next, lo, hi, 3, [s])]); return { t, s, o, a: o.indexOf(next) }; }
-      if (t === "first") { const other = shuffle(near(s, lo, hi, 6).filter((m) => Math.abs(m - s) >= 2))[0] || near(s, lo, hi, 1)[0]; const o = shuffle([s, other]); return { t, s, o, a: o.indexOf(Math.min(s, other)) }; }
-      const span = hi - lo + 1, pick = new Set([s]);
-      while (pick.size < 4) pick.add(lo + rnd(span));
+    function question(t, s, lo, hi, pool = null) {
+      if (t === "num" || t === "name" || t === "arabic" || t === "meaning") { const o = shuffle([s, ...near(s, lo, hi, 3, [], pool)]); return { t, s, o, a: o.indexOf(s) }; }
+      if (t === "after") { const next = s + 1, o = shuffle([next, ...near(next, lo, hi, 3, [s], pool)]); return { t, s, o, a: o.indexOf(next) }; }
+      if (t === "first") { const other = shuffle(near(s, lo, hi, 6, [], pool).filter((m) => Math.abs(m - s) >= 2))[0] || near(s, lo, hi, 1)[0]; const o = shuffle([s, other]); return { t, s, o, a: o.indexOf(Math.min(s, other)) }; }
+      const nums = pool ? [...pool] : Array.from({ length: hi - lo + 1 }, (_, k) => lo + k), pick = new Set([s]);
+      while (pick.size < Math.min(4, nums.length)) pick.add(nums[rnd(nums.length)]);
+      while (pick.size < 4) pick.add(near(s, 1, 114, 1, [...pick])[0]);
       return { t, s, o: shuffle([...pick]), a: [...pick].sort((x, y) => x - y) };
     }
     const LABEL = { num: "Which number is this surah?", name: "Which surah has this number?", after: "Which surah comes right after this one?",
@@ -58,22 +91,34 @@
     return {
       id: "surahs", name: book.name, learnTitle: T("Surahs you both missed"),
       ranges: Object.entries(RANGES).map(([k, [, , label, about]]) => [k, `${label} · ${about}`]),
-      rangeName: (k) => RANGES[k]?.[2] || k,
-      inRange: (k, subject) => { const [lo, hi] = RANGES[k] || [1, 114]; return subject >= lo && subject <= hi; },
-      make(range, missed) {
-        const [lo, hi] = RANGES[range];
-        const kinds = shuffle(["num", "name", "after", "first", "order", "arabic", "meaning", "num", "name", "after"]);
-        const qs = [], used = new Set();
-        for (const s of shuffle([...missed].filter((s) => s >= lo && s <= hi)).slice(0, 2)) { const q = question(rnd(2) ? "num" : "name", s, lo, hi); q.x = 1; qs.push(q); used.add(s); }
-        for (const t of kinds) {
-          if (qs.length >= QUESTIONS) break;
-          let s, tries = 0;
-          do { s = lo + rnd(hi - lo + 1); tries++; } while (tries < 50 && (used.has(s) || (t === "after" && s >= 114) || (t === "meaning" && !plainMeaning(s))));
+      rangeName: (k) => RANGES[k]?.[2] || PARTS.find(([p]) => p === k)?.[1] || k,
+      parts: PARTS, kinds: KINDS, unit: ["surah", "surahs"], example: ["Al-Kahf", "18"],
+      pool: (cfg) => [...new Set((cfg.parts?.length ? cfg.parts : ["all"]).flatMap(numbersOf))].sort((x, y) => x - y),
+      // a duel set up: its surahs, the kinds asked (front → back is the number, back → front the name), how many, revenge
+      make(cfg, missed) {
+        const nums = this.pool(cfg), pool = new Set(nums), lo = nums[0], hi = nums[nums.length - 1];
+        let kinds = (cfg.kinds?.length ? cfg.kinds : KINDS.map(([k]) => k)).filter((k) => !(cfg.dir === "front" && k === "name") && !(cfg.dir === "back" && k === "num"));
+        if (nums.length < 4) kinds = kinds.filter((k) => k !== "order");
+        if (nums.length < 2) kinds = kinds.filter((k) => k !== "first");
+        if (!kinds.length) kinds = [cfg.dir === "back" ? "name" : "num"];
+        const want = Math.min(cfg.n || QUESTIONS, nums.length), qs = [], used = new Set();
+        if (cfg.revenge !== 0) {
+          const kind = kinds.find((k) => k === "num" || k === "name") || kinds[0];
+          for (const s of shuffle([...missed].filter((x) => pool.has(x))).slice(0, Math.min(2, Math.floor(want / 3)))) { const q = question(kind, s, lo, hi, pool); q.x = 1; qs.push(q); used.add(s); }
+        }
+        let cycle = shuffle(kinds);
+        while (qs.length < want) {
+          if (!cycle.length) cycle = shuffle(kinds);
+          const t = cycle.pop(), free = nums.filter((s) => !used.has(s) && !(t === "after" && s >= 114) && !(t === "meaning" && !plainMeaning(s)));
+          if (!free.length) { if (kinds.every((k) => !nums.some((s) => !used.has(s)))) break; continue; }
+          const s = free[rnd(free.length)];
           used.add(s);
-          qs.push(question(t, s, lo, hi));
+          qs.push(question(t, s, lo, hi, pool));
         }
         return shuffle(qs);
       },
+      typeable: (q) => ["num", "name", "after", "arabic", "meaning"].includes(q.t),
+      typed: (q) => (q.t === "num" ? [String(q.s)] : q.t === "after" ? [S(q.s + 1).name] : [S(q.s).name]),
       isOrder: (q) => q.t === "order",
       label: (q) => LABEL[q.t],
       prompt(q) {
@@ -122,15 +167,25 @@
       const block = lists.slice(i, i + 3), a = block[0].name.match(/^(.*?)(\d+)–(\d+)$/), z = block[block.length - 1].name.match(/^(.*?)(\d+)–(\d+)$/);
       ranges.push([`s:${i + 1}-${i + block.length}`, a && z && a[1] === z[1] ? `${a[1]}${a[2]}–${z[3]}` : `${block[0].name} – ${block[block.length - 1].name}`, cidsOf(block)]);
     }
-    const byKey = Object.fromEntries(ranges.map(([k, , ids]) => [k, ids]));
+    // the parts to pick from when setting a duel up: the chapters or sections, or within one, its continents or its stages
+    const setupParts = [["all", T("All"), cidsOf(lists)]];
+    if (parts.length > 1) for (const c of parts) setupParts.push([`c:${c.n}`, c.title, cidsOf(c.lists)]);
+    else if (groups.length > 1) for (const g of groups) setupParts.push([`g:${slug(g)}`, g, cidsOf(lists.filter((l) => l.group === g))]);
+    else lists.forEach((l, k) => setupParts.push([`l:${k + 1}`, l.name, cidsOf([l])]));
+    const byKey = Object.fromEntries([...ranges, ...setupParts].map(([k, , ids]) => [k, ids]));
+    const labelOf = Object.fromEntries([...ranges, ...setupParts].map(([k, label]) => [k, label]));
+    const KIND = { sentence: "cards", tf: "tf", case: "cases", sort: "cases", order: "order" };
+    const kindsHere = [...new Set([...cards.values()].map(({ it }) => KIND[kindOf(it)]))];
+    const KINDS = [["cards", T("Question and answer cards")], ["tf", T("True or false")], ["cases", T("Scenarios")], ["order", T("Putting in order")]].filter(([k]) => kindsHere.includes(k));
+    const firstCard = [...cards.values()].find(({ it }) => kindOf(it) === "sentence")?.it;
     const card = (cid) => cards.get(cid)?.it;
-    function question(cid, pool) {
+    function question(cid, pool, way = rnd(2)) {
       const { it, l } = cards.get(cid), kind = kindOf(it);
       if (kind === "tf") return { t: "tf", c: cid, o: [0, 1], a: it.a ? 0 : 1 };
       if (kind === "case" || kind === "sort") { const o = shuffle(it.opts.map((_, k) => k)); return { t: kind, c: cid, o, a: o.indexOf(it.a) }; }
       if (kind === "order") { const steps = it.steps.slice(0, 8).map((_, k) => k); return { t: "order", c: cid, o: shuffle(steps), a: steps }; }
       // a sentence card, one way or the other; the wrong choices from its own stage first (the same continent, say), then the range
-      const w = rnd(2), face = (c) => (w === 0 ? card(c).text : card(c).key);
+      const w = way, face = (c) => (w === 0 ? card(c).text : card(c).key);
       const sentences = (ids) => ids.filter((c) => c !== cid && kindOf(card(c)) === "sentence");
       const others = [];
       for (const c of [...shuffle(sentences(cidsOf([l]))), ...shuffle(sentences(pool))]) {
@@ -143,14 +198,27 @@
     return {
       id: book.id, name: book.name, learnTitle: T("Cards you both missed"),
       ranges: ranges.filter(([, , ids]) => ids.length >= 4).map(([k, label, ids]) => [k, `${label} · ${T("{n} cards", { n: ids.length })}`]),
-      rangeName: (k) => ranges.find(([r]) => r === k)?.[1] || k,
-      inRange: (k, cid) => (byKey[k] || []).includes(cid),
-      make(range, missed) {
-        const pool = byKey[range] || byKey.all, qs = [], used = new Set();
-        for (const cid of shuffle(pool.filter((c) => missed.has(c))).slice(0, 2)) { const q = question(cid, pool); q.x = 1; qs.push(q); used.add(cid); }
-        for (const cid of shuffle(pool)) { if (qs.length >= QUESTIONS) break; if (!used.has(cid)) { qs.push(question(cid, pool)); used.add(cid); } }
+      rangeName: (k) => labelOf[k] || k,
+      parts: setupParts.map(([k, label]) => [k, label]), kinds: KINDS.length > 1 ? KINDS : [], unit: ["card", "cards"],
+      example: firstCard ? [firstCard.key, firstCard.text] : null,
+      pool(cfg) {
+        const keys = cfg.parts?.length ? cfg.parts : ["all"], kinds = cfg.kinds?.length ? cfg.kinds : null;
+        return [...new Set(keys.flatMap((k) => byKey[k] || []))].filter((cid) => !kinds || kinds.includes(KIND[kindOf(card(cid))]));
+      },
+      make(cfg, missed) {
+        const pool = this.pool(cfg), want = Math.min(cfg.n || QUESTIONS, pool.length), qs = [], used = new Set();
+        const way = () => (cfg.dir === "front" ? 0 : cfg.dir === "back" ? 1 : rnd(2));
+        if (cfg.revenge !== 0) for (const cid of shuffle(pool.filter((c) => missed.has(c))).slice(0, Math.min(2, Math.floor(want / 3)))) { const q = question(cid, pool, way()); q.x = 1; qs.push(q); used.add(cid); }
+        for (const cid of shuffle(pool)) { if (qs.length >= want) break; if (!used.has(cid)) { qs.push(question(cid, pool, way())); used.add(cid); } }
         return shuffle(qs);
       },
+      // typing: a card asked for a short answer; a sentence's start, true or false, scenarios and orders stay multiple choice
+      typeable(q) {
+        if (q.t !== "card") return false;
+        const it = card(q.c), answer = q.w === 0 ? it.text : it.key;
+        return !(q.w === 1 && isStem(it)) && String(answer).length <= 40;
+      },
+      typed: (q) => [q.w === 0 ? card(q.c).text : card(q.c).key],
       isOrder: (q) => q.t === "order",
       label(q) {
         const it = card(q.c);
@@ -197,7 +265,14 @@
   const SURAH_ONLY = Object.keys(DECKS).length === 1 && DECKS.surahs;
   const deckOf = (d) => DECKS[d.deck || "surahs"];
   const known = (d) => !!deckOf(d) && d.qs.every((q) => (q.c ? deckOf(d).has?.(q.c) : true));      // a duel this phone can show
-  const title = (d) => (Object.keys(DECKS).length > 1 ? `${deckOf(d).name} · ` : "") + deckOf(d).rangeName(d.range);
+  // what a duel is on ("Geography · Africa, Asia"), and how it's set up ("10 questions · typing · back → front · 15 s")
+  const partsName = (deck, keys) => (keys.length <= 2 ? keys.map((k) => deck.rangeName(k)).join(", ") : T("{first} and {n} more", { first: deck.rangeName(keys[0]), n: keys.length - 1 }));
+  const title = (d) => (Object.keys(DECKS).length > 1 ? `${deckOf(d).name} · ` : "") + (d.cfg?.parts?.length && d.range === "custom" ? partsName(deckOf(d), d.cfg.parts) : deckOf(d).rangeName(d.range));
+  const DIRS = { front: "front → back", back: "back → front", both: "both ways" };
+  const setupLine = (c) => !c ? "" : [T("{n} questions", { n: c.n ?? QUESTIONS }), T(c.mode === "typing" ? "typing" : "multiple choice"), T(DIRS[c.dir || "both"]),
+    c.time === 0 ? T("no clock") : T("{n} s", { n: c.time ?? 15 })].join(" · ");
+  const DEFAULT = { n: QUESTIONS, mode: "choice", dir: "both", time: 15, bet: 1, revenge: 1 };
+  const SETUP_KEY = "sora.duel.setup.v1";
 
   // ---------- what this phone keeps ----------
   const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch { return d; } };
@@ -339,8 +414,8 @@
     screen = "welcome";
     view(el("div", { class: "sd-grid" },
       box("sd-turn sd-wide", GAME, SURAH_ONLY ? "Challenge each other on the surahs" : T("Challenge each other on what you're learning"),
-        el("p", {}, SURAH_ONLY ? "Each duel is the same 7 questions for both of you: which number a surah is, which comes next, which comes first, putting them in order, and surahs by their Arabic or meaning. You see each other's results as they come in, so you can learn together."
-          : T("Each duel is the same 7 questions for both of you, on {subjects}. You see each other's results as they come in, so you can learn together.", { subjects: deckNames() })),
+        el("p", {}, SURAH_ONLY ? "Each duel is the same questions for both of you: which number a surah is, which comes next, which comes first, putting them in order, and surahs by their Arabic or meaning. Whoever challenges sets it up: how many questions, which surahs, multiple choice or typing. You see each other's results as they come in, so you can learn together."
+          : T("Each duel is the same questions for both of you, on {subjects}. Whoever challenges sets it up: the subject and its parts, how many questions, multiple choice or typing. You see each other's results as they come in, so you can learn together.", { subjects: deckNames() })),
         el("p", { class: "hint" }, T("Start a room here, then send the invite link to the one you want to duel with. You only do this once.")),
         nameForm(T("Start a duel room"), async (name) => {
           const st = await call({}, { op: "create", name });
@@ -463,9 +538,12 @@
           el("ul", { class: "sd-list" }, ...turn.slice(0, 6).map((d) => el("li", {},
             el("span", {}, `${T("{name} challenged you", { name: nameOf(d.by) })} · ${title(d)} `, el("br"),
               el("b", {}, T("{name}: {right} of {all} right, {points} points", { name: nameOf(d.by), right: rightOf(theirs(d)), all: d.qs.length, points: num(theirs(d).points) })), " ",
-              el("small", {}, when(theirs(d).at))), btn(T("Beat it ▶"), () => play(d), true, "small"))))) : "",
+              el("small", {}, when(theirs(d).at)), d.cfg ? el("br") : "", d.cfg ? el("small", { class: "sd-cfg" }, setupLine(d.cfg)) : ""), btn(T("Beat it ▶"), () => play(d), true, "small"))))) : "",
         box("sd-new", T("New duel"), T("Challenge {name}", { name: p.name }),
           el("p", { class: "hint" }, T("You play first. When you've finished, {name} gets the challenge with your score to beat, whenever they next open the app. Pick what it's on:", { name: p.name })),
+          lastSetup() ? el("div", { class: "row" }, btn(T("Same again: {what}", { what: `${lastSetup().deckName} · ${setupLine(lastSetup().cfg)}` }), () => challenge(lastSetup().deck, "custom", lastSetup().cfg), true)) : "",
+          el("div", { class: "row" }, btn(T("Set up a duel…"), () => setup(), true, "sd-setup-btn")),
+          el("p", { class: "hint" }, T("Or a quick one: {setup}", { setup: setupLine(DEFAULT) })),
           ...Object.values(DECKS).map((deck) => el("div", { class: "sd-ranges" }, Object.keys(DECKS).length > 1 ? el("small", { class: "sd-deck" }, deck.name) : "",
             ...deck.ranges.map(([k, label]) => btn(label, () => challenge(deck.id, k), false))))),
         waiting.length ? box("sd-wait", T("Waiting for {name}", { name: p.name }), T("{n} sent", { n: n(waiting.length, "duel", "duels") }),
@@ -482,35 +560,99 @@
 
   // ---------- making a duel: 7 questions, the same for both ----------
   // a new duel is played first by whoever makes it; it's sent, with their result, only when they've finished (giving up sends nothing)
-  function challenge(deck, range) {
-    const qs = DECKS[deck].make(range, missedLately(deck));
-    play({ id: Date.now().toString(36) + rnd(46656).toString(36).padStart(3, "0"), ...(deck !== "surahs" ? { deck } : {}), range, qs, by: me.id, at: Date.now(), results: {} });
+  function challenge(deck, range, cfg = null) {
+    const setupOf = cfg || { ...DEFAULT, parts: [range] };
+    const qs = DECKS[deck].make(setupOf, setupOf.revenge === 0 ? new Set() : missedLately(deck));
+    if (!qs.length) { toast(T("Nothing to ask in that choice: pick more parts or kinds.")); return; }
+    play({ id: Date.now().toString(36) + rnd(46656).toString(36).padStart(3, "0"), ...(deck !== "surahs" ? { deck } : {}), range: cfg ? "custom" : range, cfg: setupOf, qs, by: me.id, at: Date.now(), results: {} });
+  }
+  const lastSetup = () => { const l = read(SETUP_KEY, null); return l && DECKS[l.deck] ? { ...l, deckName: DECKS[l.deck].name } : null; };
+
+  // ---------- setting a duel up ----------
+  function setup() {
+    screen = "setup";
+    const last = lastSetup();
+    let deckId = last?.deck || Object.keys(DECKS)[0];
+    let cfg = { ...DEFAULT, parts: ["all"], kinds: [], ...(last && last.deck === deckId ? last.cfg : {}) };
+    const choice = (options, current, pick) => el("div", { class: "set-choice", role: "radiogroup" }, ...options.map(([v, label]) => {
+      const b = el("button", { type: "button", class: v === current ? "on" : "", role: "radio", "aria-checked": String(v === current) }, label);
+      b.onclick = () => pick(v);
+      return b;
+    }));
+    const ticks = (options, chosen, toggle) => el("div", { class: "sd-ticks" }, ...options.map(([v, label]) => {
+      const b = el("button", { type: "button", class: chosen.includes(v) ? "on" : "", "aria-pressed": String(chosen.includes(v)) }, label);
+      b.onclick = () => toggle(v);
+      return b;
+    }));
+    const row = (label, control, hint = "") => el("div", { class: "sd-row" }, el("div", { class: "sd-row-label" }, el("b", {}, label), hint ? el("small", {}, hint) : ""), control);
+    function draw() {
+      const deck = DECKS[deckId], pool = deck.pool(cfg), unit = tr.n(pool.length, deck.unit[0], deck.unit[1]);
+      const ex = deck.example ? T("front: {front} · back: {back}", { front: cut(deck.example[0], 40), back: cut(deck.example[1], 30) }) : "";
+      const parts = cfg.parts?.length ? cfg.parts : ["all"];
+      view(el("div", { class: "sd-grid" }, box("sd-new sd-wide", T("New duel"), T("Set up a duel"),
+        Object.keys(DECKS).length > 1 ? row(T("Subject"), choice(Object.values(DECKS).map((d) => [d.id, d.name]), deckId, (v) => { deckId = v; cfg = { ...cfg, parts: ["all"], kinds: [] }; draw(); })) : "",
+        row(T("Parts"), ticks(deck.parts, parts, (v) => {
+          const now = parts.filter((x) => x !== "all");
+          cfg.parts = v === "all" ? ["all"] : now.includes(v) ? now.filter((x) => x !== v) : [...now, v];
+          if (!cfg.parts.length) cfg.parts = ["all"];
+          draw();
+        }), T("{n} {unit} in this choice", { n: pool.length, unit })),
+        deck.kinds.length ? row(T("Kinds of question"), ticks(deck.kinds, cfg.kinds?.length ? cfg.kinds : deck.kinds.map(([k]) => k), (v) => {
+          const all = deck.kinds.map(([k]) => k), now = cfg.kinds?.length ? cfg.kinds : all;
+          cfg.kinds = now.includes(v) ? now.filter((x) => x !== v) : [...now, v];
+          if (!cfg.kinds.length || cfg.kinds.length === all.length) cfg.kinds = [];
+          draw();
+        })) : "",
+        row(T("Questions"), choice([5, 7, 10, 15, 20].map((k) => [k, String(k)]), cfg.n, (v) => { cfg.n = v; draw(); }), pool.length < cfg.n ? T("Only {n} in this choice: the duel has {n}.", { n: pool.length }) : ""),
+        row(T("Test"), choice([["choice", T("Multiple choice")], ["typing", T("Typing")]], cfg.mode, (v) => { cfg.mode = v; draw(); }),
+          cfg.mode === "typing" ? T("Small typos and capital letters are forgiven. True or false, scenarios and putting in order stay multiple choice.") : ""),
+        row(T("Direction"), choice([["front", T("Front → back")], ["back", T("Back → front")], ["both", T("Both ways")]], cfg.dir, (v) => { cfg.dir = v; draw(); }), ex),
+        row(T("Time per question"), choice([[0, T("No clock")], [10, T("{n} s", { n: 10 })], [15, T("{n} s", { n: 15 })], [30, T("{n} s", { n: 30 })]], cfg.time, (v) => { cfg.time = v; draw(); }),
+          cfg.mode === "typing" && cfg.time ? T("Typing gets twice the time.") : ""),
+        row(T("Double or nothing"), choice([[1, T("On")], [0, T("Off")]], cfg.bet, (v) => { cfg.bet = v; draw(); })),
+        row(T("Revenge questions"), choice([[1, T("On")], [0, T("Off")]], cfg.revenge, (v) => { cfg.revenge = v; draw(); }), T("Up to two you or your partner missed lately, worth double")),
+        el("div", { class: "row" }, btn(T("Play ▶"), () => {
+          const c = { ...cfg, parts: cfg.parts?.length ? cfg.parts : ["all"] };
+          if (!c.kinds?.length) delete c.kinds;
+          keep(SETUP_KEY, { deck: deckId, cfg: c });
+          challenge(deckId, "custom", c);
+        }, true, "sd-play-btn"), btn(T("Cancel"), home, false, "link")))));
+      main.querySelector(".sd-play-btn").disabled = !pool.length;
+    }
+    draw();
   }
 
   // ---------- playing a duel ----------
   function play(duel) {
     screen = "play"; current = duel;
-    const deck = deckOf(duel);
-    let i = 0, points = 0, betUsed = false, timer = null;
+    const deck = deckOf(duel), cfg = { ...DEFAULT, ...(duel.cfg || {}) };
+    let i = 0, points = 0, betUsed = !cfg.bet, timer = null;
     const answers = [], start = Date.now();
     const hud = el("div", { class: "sd-hud" }), clock = el("div", { class: "sd-clock" }, el("i")), body = el("div", { class: "sd-play" });
     const other = duel.by === me.id ? partner() : room.members.find((m) => m.id === duel.by), toBeat = duel.by !== me.id ? duel.results[duel.by]?.points : null;
     view(el("div", { class: "sd-play" }, hud, clock, body, el("div", { class: "row" }, btn(T("Give up"), () => { clearInterval(timer); home(); }, false, "link"))));
     function ask() {
-      const q = duel.qs[i], order = deck.isOrder(q), limit = order ? TIME_ORDER : TIME, began = performance.now();
+      const q = duel.qs[i], order = deck.isOrder(q), typing = cfg.mode === "typing" && deck.typeable?.(q), began = performance.now();
+      // the clock: the duel's time a question, more for putting in order (5:3, as 25 s to 15 s) and twice for typing; none if it's off
+      const limit = !cfg.time ? 0 : order ? Math.round((cfg.time * TIME_ORDER) / TIME) : typing ? cfg.time * 2 : cfg.time;
       let bet = false, picked = [], over = false;
       hud.replaceChildren(el("span", {}, T("Question {n} of {all}", { n: i + 1, all: duel.qs.length })),
         el("span", {}, toBeat == null ? T("vs {name}", { name: other?.name || "?" }) : T("{name}: {points} to beat", { name: other?.name || "?", points: num(toBeat) })),
         el("span", {}, T("{n} points", { n: num(points) })));
-      const opts = q.o.map((v, k) => btn(deck.optionText(q, v), () => pick(k), false));
+      const opts = typing ? [] : q.o.map((v, k) => btn(deck.optionText(q, v), () => pick(k), false));
       const betBtn = betUsed ? "" : btn(T("Double or nothing: ×2 if right, −100 if not"), () => { bet = !bet; betBtn.classList.toggle("on", bet); }, false, "small sd-bet");
+      const input = typing ? el("input", { type: "text", class: "sd-type", placeholder: T("Type the answer"), "aria-label": T("Your answer"), autocomplete: "off", autocapitalize: "off", spellcheck: "false" }) : null;
+      const check = () => { if (input.value.trim()) finish(-1, typedRight(input.value, deck.typed(q)), input.value.trim()); };
+      if (input) input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
       body.replaceChildren(el("div", { class: "sd-q" }, q.x ? el("span", { class: "tag" }, T("Revenge ×2")) : "", el("small", {}, deck.label(q)), deck.prompt(q), deck.extra(q)),
-        el("div", { class: "sd-opts" }, ...opts), betBtn);
+        typing ? el("div", { class: "sd-typing" }, input, el("div", { class: "row" }, btn(T("Check"), check, true), btn(T("I don't know"), () => finish(-1, false, ""), false))) : el("div", { class: "sd-opts" }, ...opts), betBtn);
+      if (input) setTimeout(() => input.focus(), 30);
       clearInterval(timer);
-      timer = setInterval(() => {
+      clock.firstChild.style.width = limit ? "100%" : "0";
+      if (limit) timer = setInterval(() => {
         const left = Math.max(0, limit - (performance.now() - began) / 1000);
         clock.firstChild.style.width = `${(left / limit) * 100}%`;
-        if (left <= 0) finish(order ? picked.map((k) => q.o[k]) : -1, false);
+        if (left <= 0) finish(order ? picked.map((k) => q.o[k]) : -1, false, input ? input.value.trim() : undefined, true);
       }, 100);
       function pick(k) {
         if (over) return;
@@ -527,20 +669,23 @@
         }
         finish(k, k === q.a);
       }
-      function finish(k, ok) {
+      function finish(k, ok, typed, timedOut = false) {
         if (over) return;
         over = true; clearInterval(timer);
-        const ms = Math.round(performance.now() - began), left = Math.max(0, limit - ms / 1000);
+        const ms = Math.round(performance.now() - began), left = limit ? Math.max(0, limit - ms / 1000) : 0;
         opts.forEach((o, n) => { o.disabled = true; if (!order) { o.classList.toggle("good", n === q.a); o.classList.toggle("bad", n === k && !ok); } });
-        let got = ok ? 100 + Math.round(50 * (left / limit)) : 0;
+        if (input) { input.disabled = true; body.querySelectorAll(".sd-typing button").forEach((b) => (b.disabled = true)); input.classList.add(ok ? "good" : "bad"); }
+        if (typed !== undefined && ok) k = q.a ?? 0;
+        let got = ok ? 100 + (limit ? Math.round(50 * (left / limit)) : 0) : 0;
         if (ok && q.x) got *= 2;
         if (bet) { got = ok ? got * 2 : -100; betUsed = true; }
         points += got;
-        answers.push({ k: Array.isArray(k) ? (k.length ? k : -1) : k, ok, ms: Math.min(ms, 600000), ...(bet ? { d: 1 } : {}) });
+        answers.push({ k: Array.isArray(k) ? (k.length ? k : -1) : k, ok, ms: Math.min(ms, 600000), ...(bet ? { d: 1 } : {}), ...(typed !== undefined ? { y: String(typed).slice(0, 80) } : {}) });
         sound(ok ? "right" : "wrong");
         const last = i === duel.qs.length - 1;
         body.append(el("div", { class: `sd-feedback ${ok ? "" : "miss"}`.trim() },
-          el("p", {}, el("b", {}, ok ? T("Right! +{n}", { n: num(got) }) : k === -1 ? T("Time's up.") : bet ? T("Not this one: −100") : T("Not this one."))),
+          el("p", {}, el("b", {}, ok ? T("Right! +{n}", { n: num(got) }) : bet ? T("Not this one: −100") : timedOut ? T("Time's up.") : typed === "" ? T("Here it is.") : typed !== undefined ? T("Not quite.") : T("Not this one."))),
+          typed && !ok ? el("p", { class: "hint" }, T("You wrote: {value}", { value: typed })) : "",
           el("p", {}, deck.right(q)), deck.feedExtra(q),
           el("div", { class: "row" }, btn(T(last ? "See the result" : "Next →"), () => (last ? done() : (i++, ask())), true))));
         body.querySelector(".sd-feedback button").focus();
@@ -553,7 +698,7 @@
       if (fresh) { d = duel; room.duels.push(d); }
       d.results[me.id] = { ...r, at: Date.now() };
       keep(ROOM_KEY, room);
-      if (fresh) { outbox.push({ op: "duel", room: me.room, me: me.id, duel: { id: d.id, ...(d.deck ? { deck: d.deck } : {}), range: d.range, qs: d.qs } }); keep(OUT_KEY, outbox); }
+      if (fresh) { outbox.push({ op: "duel", room: me.room, me: me.id, duel: { id: d.id, ...(d.deck ? { deck: d.deck } : {}), range: d.range, ...(d.cfg ? { cfg: d.cfg } : {}), qs: d.qs } }); keep(OUT_KEY, outbox); }
       send({ op: "result", room: me.room, me: me.id, duel: d.id, result: r });
       result(d);
     }
@@ -566,15 +711,17 @@
     const d = room.duels.find((x) => x.id === duel.id) || duel, p = partner(), a = d.results[me.id], b = d.results[p.id], deck = deckOf(d);
     if (!a) return play(d);           // not played yet here: nothing of theirs to see first
     const cell = (r, k) => r ? el("td", { class: r.answers[k].ok ? "ok" : "miss" }, `${r.answers[k].ok ? "✓" : "✗"} `,
-      el("small", {}, `${T("{n} s", { n: (r.answers[k].ms / 1000).toFixed(1) })}${r.answers[k].d ? ` · ${T("×2 bet")}` : ""}`)) : el("td", {}, el("small", {}, "…"));
+      el("small", {}, `${T("{n} s", { n: (r.answers[k].ms / 1000).toFixed(1) })}${r.answers[k].d ? ` · ${T("×2 bet")}` : ""}`),
+      r.answers[k].y ? el("small", { class: "sd-typed" }, ` “${cut(r.answers[k].y, 30)}”`) : "") : el("td", {}, el("small", {}, "…"));
     view(el("div", { class: "sd-grid" },
       box("sd-done sd-wide", `${title(d)} · ${when(d.at)}`, b ? T("You {a} – {b} {name}", { a: num(a.points), b: num(b.points), name: p.name }) : T("You {points} · waiting for {name}", { points: num(a.points), name: p.name }),
+        d.cfg ? el("small", { class: "sd-cfg" }, setupLine(d.cfg)) : "",
         b ? el("div", { class: "sd-banner" }, a.points > b.points ? T("You won!") : b.points > a.points ? T("{name} won this one", { name: p.name }) : T("A draw"))
           : el("p", { class: "hint" }, T("{name}'s answers show here as soon as they've played: this page changes by itself.", { name: p.name })),
         el("table", { class: "sd-vs" },
           el("thead", {}, el("tr", {}, el("th", {}, T("Question")), el("th", {}, T("Answer")), el("th", {}, T("You")), el("th", {}, p.name))),
           el("tbody", {}, ...d.qs.map((q, k) => el("tr", {}, el("td", {}, q.x ? "↺ " : "", deck.summary(q)), el("td", {}, deck.answer(q)), cell(a, k), cell(b, k))))),
-        el("div", { class: "row" }, btn(T("Rematch"), () => challenge(d.deck || "surahs", d.range), true), btn(T("Duels"), home)))));
+        el("div", { class: "row" }, btn(T("Rematch"), () => challenge(d.deck || "surahs", d.range, d.range === "custom" ? d.cfg : null), true), btn(T("Duels"), home)))));
   }
 
   $("sdHome").onclick = home;

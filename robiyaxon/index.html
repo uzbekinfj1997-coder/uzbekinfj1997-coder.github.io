@@ -20,11 +20,15 @@
   window.SoraApp = { id: "robiyaxon", keys: () => raw().filter((k) => k.startsWith(ns) && k !== ns + "since").map((k) => k.slice(ns.length)) };
 })();
 </script>
+<script>window.SORA_LANGS = ["ru", "en"];</script>
+<script src="/static/lang-ru.js"></script>
+<script src="/static/lang.js"></script>
 <script src="/static/players.js"></script>
 <script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap">
 <meta name="robots" content="noindex, nofollow">
 <script>window.SORA_EDITION = "robiyaxon"; window.SORA_STATIC = true;</script>
 <link rel="icon" href="/robiyaxon/icon-192.png">
@@ -37,25 +41,26 @@
 <div class="app">
 <aside class="side">
   <a class="brand" href="/robiyaxon/"><span class="brand-mark">R</span>Robiyaxon</a>
-  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
-  <a class="nav-item" href="/robiyaxon/" aria-current="page">Home</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/robiyaxon/" aria-current="page" data-t>Home</a>
   
-  <div class="nav-label">Study</div>
+  <div class="nav-label" data-t>Study</div>
   
-  <a class="nav-item" href="/robiyaxon/study-quest/anatomy/" >Anatomy</a>
+  <a class="nav-item" href="/robiyaxon/study-quest/anatomy/"  data-t>Anatomy</a>
   
-  <a class="nav-item" href="/robiyaxon/study-quest/orgchem/" >Organic Chemistry</a>
+  <a class="nav-item" href="/robiyaxon/study-quest/orgchem/"  data-t>Organic Chemistry</a>
   
-  <a class="nav-item" href="/robiyaxon/study-quest/pathology/" >Pathology</a>
+  <a class="nav-item" href="/robiyaxon/study-quest/pathology/"  data-t>Pathology</a>
   
   
-  <div class="nav-label">Games</div>
+  <div class="nav-label" data-t>Games</div>
   
-  <a class="nav-item" href="/robiyaxon/walks/" >Walks</a>
+  <a class="nav-item" href="/robiyaxon/walks/"  data-t>Walks</a>
   
   
   <div class="side-foot">
-    <span class="local">Your progress stays in this browser</span>
+    <span class="local" data-t>Your progress stays in this browser</span>
+    <button class="small" id="langBtn" type="button" hidden></button>
     <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
   </div>
 </aside>
@@ -69,32 +74,32 @@
   
 <div class="page-title">
   <div class="ov-label">Robiyaxon</div>
-  <h1>Games</h1>
-  <p>Pick a game.</p>
+  <h1 data-t>Games</h1>
+  <p data-t>Pick a game.</p>
 </div>
 
-<h2 class="topic-head">Study</h2>
+<h2 class="topic-head" data-t>Study</h2>
 <div class="tools">
   
   <a class="tool-card compact" href="/robiyaxon/study-quest/anatomy/" title="Anatomy, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.&#10;Input: Nothing to upload: the game runs in the browser">
-    <h3>Anatomy</h3><span class="open">→</span>
+    <h3 data-t>Anatomy</h3><span class="open">→</span>
   </a>
   
   <a class="tool-card compact" href="/robiyaxon/study-quest/orgchem/" title="Organic Chemistry, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.&#10;Input: Nothing to upload: the game runs in the browser">
-    <h3>Organic Chemistry</h3><span class="open">→</span>
+    <h3 data-t>Organic Chemistry</h3><span class="open">→</span>
   </a>
   
   <a class="tool-card compact" href="/robiyaxon/study-quest/pathology/" title="Pathology, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.&#10;Input: Nothing to upload: the game runs in the browser">
-    <h3>Pathology</h3><span class="open">→</span>
+    <h3 data-t>Pathology</h3><span class="open">→</span>
   </a>
   
 </div>
 
-<h2 class="topic-head">Games</h2>
+<h2 class="topic-head" data-t>Games</h2>
 <div class="tools">
   
   <a class="tool-card compact" href="/robiyaxon/walks/" title="A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.&#10;Input: Nothing to upload: the walks run in the browser">
-    <h3>Walks</h3><span class="open">→</span>
+    <h3 data-t>Walks</h3><span class="open">→</span>
   </a>
   
 </div>

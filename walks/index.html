@@ -20,11 +20,15 @@
   window.SoraApp = { id: "public", keys: () => raw().filter((k) => k.startsWith(ns) && k !== ns + "since").map((k) => k.slice(ns.length)) };
 })();
 </script>
+
+
+<script src="/static/lang.js"></script>
 <script src="/static/players.js"></script>
 <script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+
 <meta name="robots" content="noindex, nofollow">
 <script>window.SORA_EDITION = "public"; window.SORA_STATIC = true;</script>
 <link rel="icon" href="/icon-192.png">
@@ -37,18 +41,19 @@
 <div class="app">
 <aside class="side">
   <a class="brand" href="/"><span class="brand-mark">S</span>Sora</a>
-  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
-  <a class="nav-item" href="/" >Home</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/"  data-t>Home</a>
   
-  <div class="nav-label">Games</div>
+  <div class="nav-label" data-t>Games</div>
   
-  <a class="nav-item" href="/2048/" >2048 (game)</a>
+  <a class="nav-item" href="/2048/"  data-t>2048 (game)</a>
   
-  <a class="nav-item" href="/walks/" aria-current="page">Walks</a>
+  <a class="nav-item" href="/walks/" aria-current="page" data-t>Walks</a>
   
   
   <div class="side-foot">
-    <span class="local">Your progress stays in this browser</span>
+    <span class="local" data-t>Your progress stays in this browser</span>
+    
     <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
   </div>
 </aside>
@@ -59,7 +64,7 @@
   </div>
   
   
-  <div class="page-title"><div class="ov-label">Sora</div><h1>Walks</h1><p>A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.</p></div>
+  <div class="page-title"><div class="ov-label">Sora</div><h1 data-t>Walks</h1><p data-t>A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.</p></div>
   
   
 <style>

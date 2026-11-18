@@ -1,5 +1,6 @@
-/* Study Quest: Anatomy, for Robiyaxon's app. One example chapter so far; the others are listed as coming.
-   Written for her from standard textbook facts. Built by ~/study/school/books_robiyaxon.py; edit that, not this file. */
+/* Study Quest: Anatomy, for Robiyaxon's app, in Russian (each text's "ru") and English. One example chapter so far; the others are
+   listed as coming. Written for her from standard textbook facts. Built by ~/study/school/books_robiyaxon.py and books_robiyaxon_ru.py;
+   edit those, not this file. */
 "use strict";
 window.StudyBooks = window.StudyBooks || [];
 window.StudyBooks.push({
@@ -21,54 +22,108 @@ window.StudyBooks.push({
       {
        "key": "Towards the front of the body is …",
        "text": "anterior",
-       "why": "Also called ventral."
+       "why": "Also called ventral.",
+       "ru": {
+        "key": "Ближе к передней поверхности тела — …",
+        "text": "передний [[anterior]]",
+        "why": "Иначе — вентральный [[ventral]]."
+       }
       },
       {
        "key": "Towards the back of the body is …",
        "text": "posterior",
-       "why": "Also called dorsal."
+       "why": "Also called dorsal.",
+       "ru": {
+        "key": "Ближе к задней поверхности тела — …",
+        "text": "задний [[posterior]]",
+        "why": "Иначе — дорсальный [[dorsal]]."
+       }
       },
       {
        "key": "Towards the head is …",
        "text": "superior",
-       "why": "Also called cranial."
+       "why": "Also called cranial.",
+       "ru": {
+        "key": "Ближе к голове — …",
+        "text": "верхний [[superior]]",
+        "why": "Иначе — краниальный [[cranial]]."
+       }
       },
       {
        "key": "Towards the feet is …",
        "text": "inferior",
-       "why": "Also called caudal."
+       "why": "Also called caudal.",
+       "ru": {
+        "key": "Ближе к стопам — …",
+        "text": "нижний [[inferior]]",
+        "why": "Иначе — каудальный [[caudal]]."
+       }
       },
       {
        "key": "Nearer the midline of the body is …",
        "text": "medial",
-       "why": "The nose is medial to the eyes."
+       "why": "The nose is medial to the eyes.",
+       "ru": {
+        "key": "Ближе к срединной линии тела — …",
+        "text": "медиальный [[medial]]",
+        "why": "Нос расположен медиальнее глаз."
+       }
       },
       {
        "key": "Further from the midline is …",
        "text": "lateral",
-       "why": "The ears are lateral to the eyes."
+       "why": "The ears are lateral to the eyes.",
+       "ru": {
+        "key": "Дальше от срединной линии — …",
+        "text": "латеральный [[lateral]]",
+        "why": "Уши расположены латеральнее глаз."
+       }
       },
       {
        "key": "On a limb, nearer the point where it joins the trunk is …",
        "text": "proximal",
-       "why": "The elbow is proximal to the wrist."
+       "why": "The elbow is proximal to the wrist.",
+       "ru": {
+        "key": "На конечности: ближе к месту, где она отходит от туловища, — …",
+        "text": "проксимальный [[proximal]]",
+        "why": "Локоть проксимальнее запястья."
+       }
       },
       {
        "key": "On a limb, further from the trunk is …",
        "text": "distal",
-       "why": "The fingers are distal to the wrist."
+       "why": "The fingers are distal to the wrist.",
+       "ru": {
+        "key": "На конечности: дальше от туловища — …",
+        "text": "дистальный [[distal]]",
+        "why": "Пальцы дистальнее запястья."
+       }
       },
       {
        "key": "Nearer the body's surface is …",
        "text": "superficial",
-       "why": "The skin is superficial to the muscles."
+       "why": "The skin is superficial to the muscles.",
+       "ru": {
+        "key": "Ближе к поверхности тела — …",
+        "text": "поверхностный [[superficial]]",
+        "why": "Кожа лежит поверхностнее мышц."
+       }
       },
       {
        "key": "Further from the body's surface is …",
        "text": "deep",
-       "why": "The bones are deep to the muscles."
+       "why": "The bones are deep to the muscles.",
+       "ru": {
+        "key": "Дальше от поверхности тела — …",
+        "text": "глубокий [[deep]]",
+        "why": "Кости лежат глубже мышц."
+       }
       }
-     ]
+     ],
+     "ru": {
+      "name": "1.1 Направления",
+      "about": "Где одна часть лежит относительно другой"
+     }
     },
     {
      "id": "ana-01-know-2",
@@ -79,36 +134,72 @@ window.StudyBooks.push({
       {
        "key": "Standing upright, facing forwards, arms at the sides, palms facing forwards, feet together: the …",
        "text": "anatomical position",
-       "why": "Every directional term is described from this position."
+       "why": "Every directional term is described from this position.",
+       "ru": {
+        "key": "Стоя прямо, лицом вперёд, руки вдоль туловища, ладони обращены вперёд, стопы вместе: …",
+        "text": "анатомическое положение [[anatomical position]]",
+        "why": "Все термины направлений описывают именно от этого положения."
+       }
       },
       {
        "key": "A plane that divides the body into left and right parts is …",
-       "text": "sagittal"
+       "text": "sagittal",
+       "ru": {
+        "key": "Плоскость, которая делит тело на левую и правую части, — …",
+        "text": "сагиттальная [[sagittal]]"
+       }
       },
       {
        "key": "The sagittal plane that divides the body into equal left and right halves is the …",
        "text": "median plane",
-       "why": "Also called the midsagittal plane."
+       "why": "Also called the midsagittal plane.",
+       "ru": {
+        "key": "Сагиттальная плоскость, которая делит тело на равные левую и правую половины, — …",
+        "text": "срединная плоскость [[median plane]]",
+        "why": "Её также называют срединно-сагиттальной [[midsagittal]]."
+       }
       },
       {
        "key": "A plane that divides the body into front and back parts is …",
        "text": "coronal",
-       "why": "Also called the frontal plane."
+       "why": "Also called the frontal plane.",
+       "ru": {
+        "key": "Плоскость, которая делит тело на переднюю и заднюю части, — …",
+        "text": "фронтальная [[coronal]]",
+        "why": "Её также называют корональной."
+       }
       },
       {
        "key": "A plane that divides the body into upper and lower parts is …",
        "text": "transverse",
-       "why": "Also called horizontal or axial: the plane of CT slices."
+       "why": "Also called horizontal or axial: the plane of CT slices.",
+       "ru": {
+        "key": "Плоскость, которая делит тело на верхнюю и нижнюю части, — …",
+        "text": "горизонтальная [[transverse]]",
+        "why": "Иначе — поперечная или аксиальная [[axial]]: в этой плоскости делают срезы КТ."
+       }
       },
       {
        "key": "Lying on the back, face up, is …",
-       "text": "supine"
+       "text": "supine",
+       "ru": {
+        "key": "Положение лёжа лицом вверх — …",
+        "text": "на спине [[supine]]"
+       }
       },
       {
        "key": "Lying on the front, face down, is …",
-       "text": "prone"
+       "text": "prone",
+       "ru": {
+        "key": "Положение лёжа лицом вниз — …",
+        "text": "на животе [[prone]]"
+       }
       }
-     ]
+     ],
+     "ru": {
+      "name": "1.2 Положение и плоскости",
+      "about": "Анатомическое положение и плоскости, которыми рассекают тело"
+     }
     },
     {
      "id": "ana-01-structure-3",
@@ -126,7 +217,18 @@ window.StudyBooks.push({
         "Organs",
         "Organ systems",
         "The organism"
-       ]
+       ],
+       "ru": {
+        "q": "Уровни организации, от простого к сложному",
+        "steps": [
+         "Химический уровень: атомы и молекулы [[chemical]]",
+         "Клетки [[cells]]",
+         "Ткани [[tissues]]",
+         "Органы [[organs]]",
+         "Системы органов [[organ systems]]",
+         "Организм [[organism]]"
+        ]
+       }
       },
       {
        "t": "order",
@@ -140,9 +242,26 @@ window.StudyBooks.push({
         "Hand (manus)",
         "Fingers (digits)"
        ],
-       "why": "The arm, in anatomy, is only the part between the shoulder and the elbow."
+       "why": "The arm, in anatomy, is only the part between the shoulder and the elbow.",
+       "ru": {
+        "q": "Верхняя конечность, от проксимального к дистальному",
+        "steps": [
+         "Плечевой пояс [[shoulder]]",
+         "Плечо [[arm]]",
+         "Локоть [[elbow]]",
+         "Предплечье [[forearm]]",
+         "Запястье [[wrist]]",
+         "Кисть [[hand]]",
+         "Пальцы [[fingers]]"
+        ],
+        "why": "В анатомии плечо [[arm]] — это только часть между плечевым и локтевым суставами."
+       }
       }
-     ]
+     ],
+     "ru": {
+      "name": "1.S По порядку",
+      "about": "Расставьте по порядку"
+     }
     },
     {
      "id": "ana-01-watch-4",
@@ -154,33 +273,57 @@ window.StudyBooks.push({
        "t": "tf",
        "q": "In the anatomical position the palms face backwards",
        "a": false,
-       "why": "They face forwards, so the radius and ulna lie side by side, not crossed."
+       "why": "They face forwards, so the radius and ulna lie side by side, not crossed.",
+       "ru": {
+        "q": "В анатомическом положении ладони обращены назад",
+        "why": "Вперёд: так лучевая и локтевая кости лежат параллельно, а не перекрещиваются."
+       }
       },
       {
        "t": "tf",
        "q": "The elbow is proximal to the wrist",
        "a": true,
-       "why": "It's nearer the shoulder, where the limb joins the trunk."
+       "why": "It's nearer the shoulder, where the limb joins the trunk.",
+       "ru": {
+        "q": "Локоть проксимальнее запястья",
+        "why": "Он ближе к плечу, то есть к месту, где конечность отходит от туловища."
+       }
       },
       {
        "t": "tf",
        "q": "The coronal plane divides the body into left and right parts",
        "a": false,
-       "why": "That's the sagittal plane; the coronal plane divides front from back."
+       "why": "That's the sagittal plane; the coronal plane divides front from back.",
+       "ru": {
+        "q": "Фронтальная плоскость делит тело на левую и правую части",
+        "why": "Это сагиттальная плоскость [[sagittal]]; фронтальная [[coronal]] отделяет переднюю часть от задней."
+       }
       },
       {
        "t": "tf",
        "q": "The sternum is medial to the humerus",
        "a": true,
-       "why": "The sternum lies in the midline; the humerus is out in the arm."
+       "why": "The sternum lies in the midline; the humerus is out in the arm.",
+       "ru": {
+        "q": "Грудина [[sternum]] расположена медиальнее плечевой кости [[humerus]]",
+        "why": "Грудина лежит на срединной линии, а плечевая кость — в плече."
+       }
       },
       {
        "t": "tf",
        "q": "Supine means lying face down",
        "a": false,
-       "why": "Supine is face up; prone is face down."
+       "why": "Supine is face up; prone is face down.",
+       "ru": {
+        "q": "Положение на спине — это лёжа лицом вниз",
+        "why": "На спине [[supine]] — лицом вверх; лицом вниз — на животе [[prone]]."
+       }
       }
-     ]
+     ],
+     "ru": {
+      "name": "1.W Ловушки",
+      "about": "Верно или неверно, и почему"
+     }
     },
     {
      "id": "ana-01-apply-5",
@@ -198,7 +341,17 @@ window.StudyBooks.push({
         "Transverse"
        ],
        "a": 0,
-       "why": "A sagittal plane runs front to back, splitting left from right."
+       "why": "A sagittal plane runs front to back, splitting left from right.",
+       "ru": {
+        "q": "Какая плоскость делит тело на левую и правую половины?",
+        "ask": "Какой ответ верный?",
+        "opts": [
+         "Сагиттальная [[sagittal]]",
+         "Фронтальная [[coronal]]",
+         "Горизонтальная [[transverse]]"
+        ],
+        "why": "Сагиттальная плоскость идёт спереди назад и отделяет левую сторону от правой."
+       }
       },
       {
        "t": "case",
@@ -210,7 +363,17 @@ window.StudyBooks.push({
         "Lateral"
        ],
        "a": 0,
-       "why": "The knee is nearer to where the lower limb joins the trunk."
+       "why": "The knee is nearer to where the lower limb joins the trunk.",
+       "ru": {
+        "q": "Колено расположено … голеностопного сустава.",
+        "ask": "Какой ответ верный?",
+        "opts": [
+         "проксимальнее [[proximal]]",
+         "дистальнее [[distal]]",
+         "латеральнее [[lateral]]"
+        ],
+        "why": "Колено ближе к месту, где нижняя конечность отходит от туловища."
+       }
       },
       {
        "t": "case",
@@ -222,7 +385,17 @@ window.StudyBooks.push({
         "Coronal"
        ],
        "a": 0,
-       "why": "It divides upper from lower parts."
+       "why": "It divides upper from lower parts.",
+       "ru": {
+        "q": "Разрез, отделяющий голову от шеи, проходит в … плоскости.",
+        "ask": "Какой ответ верный?",
+        "opts": [
+         "горизонтальной [[transverse]]",
+         "сагиттальной [[sagittal]]",
+         "фронтальной [[coronal]]"
+        ],
+        "why": "Эта плоскость делит тело на верхнюю и нижнюю части."
+       }
       },
       {
        "t": "case",
@@ -234,41 +407,81 @@ window.StudyBooks.push({
         "Medial"
        ],
        "a": 0,
-       "why": "It's nearer the body's surface."
+       "why": "It's nearer the body's surface.",
+       "ru": {
+        "q": "Кожа лежит … мышц.",
+        "ask": "Какой ответ верный?",
+        "opts": [
+         "поверхностнее [[superficial]]",
+         "глубже [[deep]]",
+         "медиальнее [[medial]]"
+        ],
+        "why": "Она ближе к поверхности тела."
+       }
       }
-     ]
+     ],
+     "ru": {
+      "name": "1.A Задачи",
+      "about": "Какой ответ верный?"
+     }
     }
-   ]
+   ],
+   "ru": {
+    "title": "Анатомические термины"
+   }
   },
   {
    "n": 2,
    "title": "Bones and joints",
-   "lists": []
+   "lists": [],
+   "ru": {
+    "title": "Кости и суставы"
+   }
   },
   {
    "n": 3,
    "title": "Muscles",
-   "lists": []
+   "lists": [],
+   "ru": {
+    "title": "Мышцы"
+   }
   },
   {
    "n": 4,
    "title": "The thorax: heart and lungs",
-   "lists": []
+   "lists": [],
+   "ru": {
+    "title": "Грудная клетка: сердце и лёгкие"
+   }
   },
   {
    "n": 5,
    "title": "The abdomen",
-   "lists": []
+   "lists": [],
+   "ru": {
+    "title": "Брюшная полость"
+   }
   },
   {
    "n": 6,
    "title": "Head and neck",
-   "lists": []
+   "lists": [],
+   "ru": {
+    "title": "Голова и шея"
+   }
   },
   {
    "n": 7,
    "title": "The nervous system",
-   "lists": []
+   "lists": [],
+   "ru": {
+    "title": "Нервная система"
+   }
   }
- ]
+ ],
+ "ru": {
+  "name": "Анатомия",
+  "title": "тело человека по областям",
+  "about": "Пока одна глава для примера, остальные скоро"
+ }
 });

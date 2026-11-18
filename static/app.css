@@ -59,6 +59,8 @@
   /* names used by page templates */
   --muted: var(--ink-muted); --bad-t: var(--danger);
 }
+/* an app in Russian: fonts that have Russian letters and look close to the usual two (Chakra Petch and Barlow have none) */
+html[lang="ru"] { --font-display: "Exo 2", "Chakra Petch", system-ui, sans-serif; --font-sans: "Fira Sans", "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif; }
 
 /* ================= base ================= */
 * { box-sizing: border-box; }

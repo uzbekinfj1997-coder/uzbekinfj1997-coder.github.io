@@ -45,8 +45,8 @@ const SoraPlayers = (() => {
   const save = () => store.setItem(LIST, JSON.stringify(state));     // the ordinary way, so that the backup notices
   const clean = (name) => String(name ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_NAME);
   function problem(name, id) {
-    if (!name) return "Type a name first.";
-    return state.list.some((p) => p.id !== id && p.name.toLowerCase() === name.toLowerCase()) ? `There is already a player called ${name}.` : null;
+    if (!name) return tr("Type a name first.");
+    return state.list.some((p) => p.id !== id && p.name.toLowerCase() === name.toLowerCase()) ? tr("There is already a player called {name}.", { name }) : null;
   }
   function create(raw) {
     state = load();
@@ -66,7 +66,7 @@ const SoraPlayers = (() => {
   }
   function remove(id) {
     state = load();
-    if (state.list.length < 2) return { error: "There has to be at least one player." };
+    if (state.list.length < 2) return { error: tr("There has to be at least one player.") };
     for (const k of allKeys()) if (k.startsWith(`${PREFIX}${id}.`)) store.removeItem(k);
     state.list = state.list.filter((p) => p.id !== id);
     if (state.current === id) state.current = state.list[0].id;
@@ -82,46 +82,48 @@ const SoraPlayers = (() => {
   // ---------- the panel ----------
   let panel = null, title = "", change = null, error = "";     // change: the row being renamed or deleted
   const small = (label, onclick, cls = "small") => el("button", { type: "button", class: cls, onclick }, label);
+  // a name Sora gave ("Player 2") is shown in the app's language; a name someone typed is shown as it is
+  const nameOf = (p) => { const m = /^Player (\d+)$/.exec(p?.name || ""); return m ? tr("Player {n}", { n: m[1] }) : p?.name ?? ""; };
   function row(p) {
     if (change?.id === p.id && change.kind === "rename") {
-      const input = el("input", { type: "text", value: p.name, maxlength: MAX_NAME, "aria-label": `New name for ${p.name}` });
-      return el("form", { class: "player-row", onsubmit: (e) => { e.preventDefault(); const r = rename(p.id, input.value); error = r.error || ""; if (!r.error) change = null; render(); } }, input, el("button", { type: "submit", class: "small primary" }, "Save"), small("Cancel", () => { change = null; error = ""; render(); }, "link"));
+      const input = el("input", { type: "text", value: nameOf(p), maxlength: MAX_NAME, "aria-label": tr("New name for {name}", { name: nameOf(p) }) });
+      return el("form", { class: "player-row", onsubmit: (e) => { e.preventDefault(); const r = rename(p.id, input.value); error = r.error || ""; if (!r.error) change = null; render(); } }, input, el("button", { type: "submit", class: "small primary" }, tr("Save")), small(tr("Cancel"), () => { change = null; error = ""; render(); }, "link"));
     }
     if (change?.id === p.id && change.kind === "delete") {
-      return el("div", { class: "player-row player-sure", role: "group" }, el("span", {}, `Delete ${p.name} and all of this player's progress?`), small("Delete", () => {
+      return el("div", { class: "player-row player-sure", role: "group" }, el("span", {}, tr("Delete {name} and all of this player's progress?", { name: nameOf(p) })), small(tr("Delete"), () => {
         remove(p.id); change = null; error = "";
         if (p.id === here) location.reload(); else render();
-      }), small("Keep", () => { change = null; render(); }, "link"));
+      }), small(tr("Keep"), () => { change = null; render(); }, "link"));
     }
     const me = p.id === here;
     return el("div", { class: "player-row" },
-      el("button", { type: "button", class: `player-pick${me ? " is-current" : ""}`, onclick: () => switchTo(p.id) }, el("span", { class: "player-name" }, p.name), me ? el("small", {}, "Playing now") : ""),
-      small("Rename", () => { change = { id: p.id, kind: "rename" }; error = ""; render(); }, "link"),
-      state.list.length > 1 ? small("Delete", () => { change = { id: p.id, kind: "delete" }; error = ""; render(); }, "link") : "");
+      el("button", { type: "button", class: `player-pick${me ? " is-current" : ""}`, onclick: () => switchTo(p.id) }, el("span", { class: "player-name" }, nameOf(p)), me ? el("small", {}, tr("Playing now")) : ""),
+      small(tr("Rename"), () => { change = { id: p.id, kind: "rename" }; error = ""; render(); }, "link"),
+      state.list.length > 1 ? small(tr("Delete"), () => { change = { id: p.id, kind: "delete" }; error = ""; render(); }, "link") : "");
   }
   function render() {
     state = load();
-    const input = el("input", { type: "text", maxlength: MAX_NAME, placeholder: "Name", "aria-label": "Name of the new player" });
+    const input = el("input", { type: "text", maxlength: MAX_NAME, placeholder: tr("Name"), "aria-label": tr("Name of the new player") });
     panel.querySelector(".set-body").replaceChildren(
       el("div", { class: "player-list" }, ...state.list.map(row)),
       error ? el("div", { class: "msg error", role: "alert" }, error) : "",
-      el("div", { class: "set-group" }, "New player"),
+      el("div", { class: "set-group" }, tr("New player")),
       el("form", { class: "player-row", onsubmit: (e) => {
         e.preventDefault();
         const r = create(input.value);
         if (r.error) { error = r.error; render(); } else switchTo(r.id);
-      } }, input, el("button", { type: "submit", class: "small primary" }, "Add and play")));
+      } }, input, el("button", { type: "submit", class: "small primary" }, tr("Add and play"))));
     (panel.querySelector(".player-list input") || panel.querySelector(".player-sure button") || panel.querySelector(".player-pick.is-current"))?.focus();
   }
   function open(heading = "Players") {
     if (panel) return;
-    title = heading; change = null; error = "";
+    title = tr(heading); change = null; error = "";
     sessionStorage.setItem(ASKED, "1");
     panel = el("div", { class: "set-modal", role: "dialog", "aria-label": title },
       el("div", { class: "set-card" },
-        el("div", { class: "set-head" }, el("h2", {}, title), el("button", { type: "button", class: "link", title: "Close", onclick: close }, "✕")),
+        el("div", { class: "set-head" }, el("h2", {}, title), el("button", { type: "button", class: "link", title: tr("Close"), onclick: close }, "✕")),
         el("div", { class: "set-body" }),
-        el("div", { class: "set-foot" }, el("p", { class: "player-note" }, "Each player has their own levels, scores, worlds and settings. Study Quest and Memory Palace are shared by everyone. Changing player reloads the page, so a round in progress ends."))));
+        el("div", { class: "set-foot" }, el("p", { class: "player-note" }, tr("Each player has their own levels, scores, worlds and settings. Study Quest and Memory Palace are shared by everyone. Changing player reloads the page, so a round in progress ends.")))));
     panel.addEventListener("pointerdown", (e) => { if (e.target === panel) close(); });
     document.body.append(panel);
     render();
@@ -134,7 +136,7 @@ const SoraPlayers = (() => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
   }, true);
 
-  function showName() { const n = document.getElementById("playerName"); if (n) n.textContent = load().list.find((p) => p.id === here)?.name ?? ""; }
+  function showName() { const n = document.getElementById("playerName"); if (n) n.textContent = nameOf(load().list.find((p) => p.id === here)); }
   document.addEventListener("DOMContentLoaded", () => {
     showName();
     document.getElementById("playerBtn")?.addEventListener("click", () => open());

@@ -98,8 +98,8 @@ function showThemeButton() {
   const b = $("themeBtn");
   if (!b) return;
   const now = THEMES[themeAt()], next = THEMES[(themeAt() + 1) % THEMES.length];
-  b.textContent = `${next[1]} theme`;
-  b.title = `Now ${now[1]}. Themes: dark, light and Monokai`;
+  b.textContent = tr(`${next[1]} theme`);
+  b.title = tr("Now {now}. Themes: dark, light and Monokai", { now: tr(now[1]) });
 }
 function toggleTheme() {
   const next = THEMES[(themeAt() + 1) % THEMES.length][0];
@@ -117,8 +117,8 @@ function setupFullscreen(target) {
   const on = () => target.classList.contains("is-fullscreen");
   function show() {
     for (const b of target.querySelectorAll("[data-fullscreen]")) {
-      b.textContent = on() ? "Exit full screen" : "Full screen";
-      b.title = on() ? "Leave full screen (Esc or F)" : "Play in full screen (F)";
+      b.textContent = tr(on() ? "Exit full screen" : "Full screen");
+      b.title = tr(on() ? "Leave full screen (Esc or F)" : "Play in full screen (F)");
     }
     window.dispatchEvent(new Event("resize"));      // games size their board to the space they have
   }
@@ -172,7 +172,7 @@ function setupSettings(target, game, schema, hooks = {}) {
   function control(s) {
     const v = values[s.key];
     if (s.type === "toggle") {
-      const b = el("button", { type: "button", class: "set-toggle" + (v ? " on" : ""), role: "switch", "aria-checked": String(v) }, v ? "On" : "Off");
+      const b = el("button", { type: "button", class: "set-toggle" + (v ? " on" : ""), role: "switch", "aria-checked": String(v) }, tr(v ? "On" : "Off"));
       b.onclick = () => set(s.key, !values[s.key]);
       return b;
     }
@@ -202,13 +202,13 @@ function setupSettings(target, game, schema, hooks = {}) {
   function open() {
     if (panel) return;
     hooks.onOpen?.();
-    panel = el("div", { class: "set-modal", role: "dialog", "aria-label": "Settings" },
+    panel = el("div", { class: "set-modal", role: "dialog", "aria-label": tr("Settings") },
       el("div", { class: "set-card" },
-        el("div", { class: "set-head" }, el("h2", {}, "Settings"), el("button", { type: "button", class: "link", title: "Close", onclick: close }, "✕")),
+        el("div", { class: "set-head" }, el("h2", {}, tr("Settings")), el("button", { type: "button", class: "link", title: tr("Close"), onclick: close }, "✕")),
         el("div", { class: "set-body" }),
         el("div", { class: "set-foot" },
-          el("button", { type: "button", class: "link", onclick: () => { for (const s of schema) values[s.key] = s.default; store(); hooks.onChange?.(values, null); render(); } }, "Reset to defaults"),
-          el("button", { type: "button", class: "primary", onclick: close }, "Done"))));
+          el("button", { type: "button", class: "link", onclick: () => { for (const s of schema) values[s.key] = s.default; store(); hooks.onChange?.(values, null); render(); } }, tr("Reset to defaults")),
+          el("button", { type: "button", class: "primary", onclick: close }, tr("Done")))));
     panel.addEventListener("pointerdown", (e) => { if (e.target === panel) close(); });
     target.append(panel);
     render();

@@ -22,7 +22,7 @@
   function warnFull() {
     if (document.getElementById("backupFull")) return;
     document.querySelector("main")?.prepend(el("div", { class: "msg error", id: "backupFull" },
-      "This browser's storage is full, so your latest progress could not be saved. What was saved earlier is safe. Ask in Telegram how to free some space."));
+      tr("This browser's storage is full, so your latest progress could not be saved. What was saved earlier is safe. Ask in Telegram how to free some space.")));
   }
 
   // ---------- notice every change, and a full browser, wherever a game saves ----------
@@ -65,7 +65,7 @@
 
   // ---------- start: a new or wiped browser first takes back what the copy has ----------
   async function start() {
-    if (NO_SERVER) { status("Your progress is kept in this browser. Save a backup file now and then to keep it safe."); return; }
+    if (NO_SERVER) { status(tr("Your progress is kept in this browser. Save a backup file now and then to keep it safe.")); return; }
     const restored = sessionStorage.getItem(RESTORED);
     if (restored) { keepStatus = true; sessionStorage.removeItem(RESTORED); status(`Your progress was restored from the copy on this computer (saved ${stamp(Number(restored))}).`); }
     if (!localStorage.getItem(MARK)) {
@@ -96,10 +96,10 @@
     try { parsed = JSON.parse(await file.text()); } catch { parsed = null; }
     const data = parsed?.data;
     if (!data || typeof data !== "object" || !Object.keys(data).length || !Object.entries(data).every(([k, v]) => tracked(k) && typeof v === "string")) {
-      return alert("This is not a Sora progress file.");
+      return alert(tr("This is not a Sora progress file."));
     }
-    const when = parsed.saved_at ? ` saved ${stamp(parsed.saved_at)}` : "";
-    if (!confirm(`Replace the progress in this browser with the copy${when}?`)) return;
+    const when = parsed.saved_at ? tr(" saved {when}", { when: stamp(parsed.saved_at) }) : "";
+    if (!confirm(tr("Replace the progress in this browser with the copy{when}?", { when }))) return;
     for (const k of Object.keys(snapshot())) removeItem.call(localStorage, k);
     for (const [k, v] of Object.entries(data)) setItem.call(localStorage, k, v);
     setItem.call(localStorage, MARK, "1");

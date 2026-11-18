@@ -43,6 +43,7 @@ const StudyCore = (() => {
   // the books: built in, then those imported in Memory Palace (book -> sections as chapters)
   function books() {
     const out = [...(window.StudyBooks || [])];
+    if (window.SORA_BOOK) return out;     // a game of one book (a subject, Surah Numbers): just that book
     let imp = [];
     try { imp = JSON.parse(localStorage.getItem(IMPORT_KEY) || "[]") || []; } catch { /* none */ }
     for (const name of [...new Set(imp.map((k) => k.book))]) {
@@ -101,7 +102,8 @@ const StudyCore = (() => {
       const wrong = [...new Set([...near, ...others(items).map(face), ...others(pool.filter((x) => !items.includes(x))).map(face)].filter((o) => o && o !== right))].slice(0, 3);
       const options = shuffle([right, ...wrong], rnd);
       const stem = isStem(form);
-      const label = tr(way === "key" ? (gap ? "Fill the gap" : stem ? "Finish the sentence" : "What is it?") : (stem ? "Which beginning goes with this ending?" : "Which term is this?"));
+      const label = (way === "key" ? (gap ? "" : it.ask) : it.askBack)
+        || tr(way === "key" ? (gap ? "Fill the gap" : stem ? "Finish the sentence" : "What is it?") : (stem ? "Which beginning goes with this ending?" : "Which term is this?"));
       return { item: it, form, gap, kind, way, stem, label, prompt: way === "key" ? ask(form) : stem ? ending(it.text) : it.text, options, answer: options.indexOf(right),
                shown: options.map((o) => (way === "key" && stem ? ending(o) : o)) };
     });
@@ -588,6 +590,7 @@ window.StudyCore = StudyCore;
     if (!b) return view(head("No books yet", "Import a list file in Memory Palace to study it here."));
     const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids);
     const streak = prog.streak.last >= C.startOfDay(Date.now()) - C.DAY ? prog.streak.days : 0;
+    const one = b.chapters.length === 1;     // a book in one part (Surah Numbers): its stages on Home, no chapters
     const pct = r.next ? Math.round(((prog.xp - r.from) / (r.next[0] - r.from)) * 100) : 100;
     const made = b.chapters.filter((c) => c.lists.length).length, p = C.plan(b, prog);
     const planOn = !!b.plan?.sessions?.length && b.plan.sessions.some((x) => !sessionState(b, x).done);     // the plan's Today card leads
@@ -597,7 +600,7 @@ window.StudyCore = StudyCore;
     view(
       books.length > 1 ? el("div", { class: "sq-tabs" }, ...books.map((x) => el("button", { type: "button", class: x.id === b.id ? "on" : "", onclick: () => { bookId = x.id; home(); } }, x.name))) : "",
       el("section", { class: "sq-top" },
-        el("div", {}, el("h2", {}, `${b.name}: ${b.title}`), el("p", { class: "hint" }, tr("{about}. {made} of {all} chapters ready.", { about: b.about, made, all: b.chapters.length }))),
+        el("div", {}, el("h2", {}, `${b.name}: ${b.title}`), el("p", { class: "hint" }, one ? `${b.about}.` : tr("{about}. {made} of {all} chapters ready.", { about: b.about, made, all: b.chapters.length }))),
         el("div", { class: "sq-rank" }, el("small", {}, tr("Rank")), el("b", {}, tr(r.name)), el("div", { class: "sq-meter" }, el("i", { style: `width:${pct}%` })),
           el("small", {}, r.next ? tr("{xp} / {next} points to {rank}", { xp: num(prog.xp), next: num(r.next[0]), rank: tr(r.next[1]) })
             : tr("{xp} {points}", { xp: num(prog.xp), points: tr.n(prog.xp, "points", "points") }))),
@@ -608,7 +611,8 @@ window.StudyCore = StudyCore;
           : `${p.total - p.left} of ${p.total} stages passed · pass ${p.perDay} new stage${p.perDay === 1 ? "" : "s"} a day${p.days > 7 ? ", then use the last week for review" : ""}`) : `All ${p.total} stages passed: keep up the reviews`),
         p.days >= 0 && p.days <= 10 && p.total > p.left ? btn("Final sweep: review every passed stage", () => sweep(b), false, "small") : "") : "",
       // the mixed quiz needs two chapters, so a book with one so far doesn't show it
-      dash(todayCard(b), markedCard(b), dueIds.length ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard()),
+      dash(todayCard(b), markedCard(b), dueIds.length ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard(b)),
+      ...(one ? [el("div", { class: "sq-chapters-head" }, el("h3", {}, tr("Stages"))), ...stageBoard(b, b.chapters[0])] : [
       el("div", { class: "sq-chapters-head" }, el("h3", {}, tr("Chapters")),
         el("div", { class: "sq-legend" }, el("span", { class: "done" }, tr("✓ Done")), el("span", { class: "started" }, tr("In progress")), el("span", { class: "new" }, tr("Not started")))),
       el("div", { class: "sq-map" }, ...b.chapters.map((c) => {
@@ -624,7 +628,7 @@ window.StudyCore = StudyCore;
           c.lists.length ? el("span", { class: "bar" }, el("i", { style: `width:${Math.round((cs.passedN / cs.total) * 100)}%` })) : "");
         tile.disabled = !c.lists.length;
         return tile;
-      })));
+      }))]));
   }
 
   // ---------- questions about a card: asked through the Telegram bot, kept in a list here ----------
@@ -650,8 +654,8 @@ window.StudyCore = StudyCore;
     for (const c of b.chapters) for (const l of c.lists) if (l.items.includes(it)) return tr("{book}, chapter {n} · {stage}", { book: b.name, n: c.n, stage: l.name });
     return b.name;
   }
-  function askedCard() {
-    const list = asked();
+  function askedCard(b) {
+    const list = asked().filter((q) => !q.where || q.where.startsWith(b.name));
     if (!list.length) return "";
     return box("asked", "❓", "My questions", `${list.length} card${list.length === 1 ? "" : "s"} asked about`, "The answers are in the chat with the bot.", [],
       [el("ul", {}, ...list.slice(0, 30).map((q) => el("li", {}, el("small", {}, `${date(q.at)} · ${q.where}`), el("div", {}, q.sentence)))),
@@ -736,12 +740,14 @@ window.StudyCore = StudyCore;
     ["compare", "Compare", "alike but different"], ["watch", "Watch out", "nuances, traps"], ["apply", "Apply", "scenarios"]];
 
   // ---------- a chapter: its stages and the boss round ----------
-  function chapter(b, c) {
-    screen = "chapter";
-    const allPassed = c.lists.every((l) => C.passed(prog, l.id)), boss = prog.lists[bossId(b, c)];
-    view(head(tr("Chapter {n}: {title}", { n: c.n, title: c.title }), `${c.pages ? tr("Book pages {pages}. ", { pages: c.pages }) : ""}${tr("Look at the cards, then play the stage. 80 % passes it and opens the next one.")}`),
-      // the kinds of practice side by side, left to right, each with its stages stacked underneath
-      el("div", { class: "sq-board" }, ...TRACKS.filter(([t]) => c.lists.some((l) => trackOf(l) === t)).map(([t, title, about]) => el("div", { class: "sq-col" }, el("div", { class: "sq-track" }, el("h3", {}, tr(title)), el("span", {}, tr(about))),
+  // a chapter's stages and its boss round: on the chapter's page, or on Home for a book in one part
+  function stageBoard(b, c) {
+    const allPassed = c.lists.every((l) => C.passed(prog, l.id)), boss = prog.lists[bossId(b, c)], one = b.chapters.length === 1;
+    const tracks = TRACKS.filter(([t]) => c.lists.some((l) => trackOf(l) === t));
+    return [
+      // the kinds of practice side by side, left to right, each with its stages stacked underneath; one kind alone needs no heading, and
+      // its stages go across the page
+      el("div", { class: `sq-board${tracks.length === 1 ? " single" : ""}` }, ...tracks.map(([t, title, about]) => el("div", { class: "sq-col" }, tracks.length === 1 ? "" : el("div", { class: "sq-track" }, el("h3", {}, tr(title)), el("span", {}, tr(about))),
       el("div", { class: "sq-stack" }, ...c.lists.map((l, k) => [l, k]).filter(([l]) => trackOf(l) === t).map(([l, k]) => {
         const p = prog.lists[l.id], ok = open(c, k);
         const isNext = ok && !C.passed(prog, l.id) && c.lists.findIndex((x) => trackOf(x) === t && !C.passed(prog, x.id)) === k;
@@ -757,8 +763,14 @@ window.StudyCore = StudyCore;
       }))))),
       el("div", { class: "sq-stages" }, c.lists.length > 1 ? el("section", { class: `sq-stage boss ${allPassed || !S.order ? "" : "locked"}`.trim() },
         el("div", { class: "sq-stage-head" }, el("span", { class: "n" }, "★"), el("b", {}, tr("Boss round")), starRow(boss?.stars || 0)),
-        el("p", { class: "hint" }, tr("15 questions from every stage of the chapter, faster clock.")),
-        allPassed || !S.order ? el("div", { class: "row" }, btn(tr("Fight the boss"), () => quiz(b, c, null), true)) : el("small", {}, tr("Pass every stage to open it"))) : ""),
+        el("p", { class: "hint" }, tr(one ? "15 questions from every stage, faster clock." : "15 questions from every stage of the chapter, faster clock.")),
+        allPassed || !S.order ? el("div", { class: "row" }, btn(tr("Fight the boss"), () => quiz(b, c, null), true)) : el("small", {}, tr("Pass every stage to open it"))) : "")];
+  }
+  function chapter(b, c) {
+    if (b.chapters.length === 1) return home();      // its stages are on Home
+    screen = "chapter";
+    view(head(tr("Chapter {n}: {title}", { n: c.n, title: c.title }), `${c.pages ? tr("Book pages {pages}. ", { pages: c.pages }) : ""}${tr("Look at the cards, then play the stage. 80 % passes it and opens the next one.")}`),
+      ...stageBoard(b, c),
       // Memory Palace is Sora personal's: the websites don't carry it
       el("div", { class: "row sq-foot" }, btn(tr("← Chapters"), home, false, "link"), FRIENDS ? "" : btn("Store a list in Memory Palace", () => (location.href = "/memory-palace/"), false, "link")));
   }
@@ -806,7 +818,7 @@ window.StudyCore = StudyCore;
       if (!flipped) speak(it.q || it.key || it.text);
     }
     view(head(l.name, tr("Turn each card over. Imagine the picture for a moment: it is what brings the answer back.")), card,
-      el("div", { class: "row sq-foot" }, btn(tr("← Chapter {n}", { n: c.n }), () => chapter(b, c), false, "link")));
+      el("div", { class: "row sq-foot" }, btn(b.chapters.length === 1 ? tr("← Stages") : tr("← Chapter {n}", { n: c.n }), () => chapter(b, c), false, "link")));
     show();
   }
 
@@ -850,7 +862,7 @@ window.StudyCore = StudyCore;
         const input = el("input", { type: "text", class: "sq-type", placeholder: tr(q.gap ? "Type the missing part" : q.stem ? "Type the ending" : "Type the answer"), "aria-label": tr("Your answer"), autocomplete: "off" });
         const check = () => { if (input.value.trim()) recallAnswer(input.value); };
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
-        body.replaceChildren(el("div", { class: "sq-q" }, el("small", {}, tr(q.gap ? "Fill the gap from memory" : q.stem ? "Finish the sentence from memory" : "Recall it")), el("b", {}, q.prompt)),
+        body.replaceChildren(el("div", { class: "sq-q" }, el("small", {}, q.gap || q.stem || !q.item.ask ? tr(q.gap ? "Fill the gap from memory" : q.stem ? "Finish the sentence from memory" : "Recall it") : q.item.ask), el("b", {}, q.prompt)),
           el("div", { class: "sq-recall" }, input, el("div", { class: "row" }, btn(tr("Check"), check, true), btn(tr("I don't know"), () => recallAnswer("")))));
         setTimeout(() => input.focus(), 30);
       } else {
@@ -941,9 +953,12 @@ window.StudyCore = StudyCore;
             !x.ok && x.item.why ? whyEl(x.item.why) : "", !x.ok && x.item.image ? el("div", { class: "hint" }, tr("Picture: {image}", { image: x.item.image })) : "",
             askButton(x.item, whereOf(b, x.item), x.given, x.ok))))) : "",
         mix ? el("div", { class: "row" }, btn(tr("Another mixed quiz"), () => mixBoss(b), true), btn(tr("Chapters"), home, false, "link"))
+          : b.chapters.length === 1 ? el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(tr("Stages"), home, score >= C.PASS))
           : el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(tr("Chapter {n}", { n: c.n }), () => chapter(b, c), score >= C.PASS), btn(tr("Chapters"), home, false, "link")));
     }
-    view(head(mix ? tr("Mixed quiz") : l ? l.name : tr("Boss round: chapter {n}", { n: c.n }), mix ? tr("Traps, comparisons and scenarios from the chapters you have passed. The chapter is shown after you answer.") : l ? "" : tr("Questions from every stage of the chapter.")), bar, body,
+    const one = !mix && b.chapters.length === 1;
+    view(head(mix ? tr("Mixed quiz") : l ? l.name : one ? tr("Boss round") : tr("Boss round: chapter {n}", { n: c.n }),
+      mix ? tr("Traps, comparisons and scenarios from the chapters you have passed. The chapter is shown after you answer.") : l ? "" : tr(one ? "Questions from every stage." : "Questions from every stage of the chapter.")), bar, body,
       el("div", { class: "row sq-foot" }, btn(tr("Give up"), leave, false, "link")));
     ask();
   }

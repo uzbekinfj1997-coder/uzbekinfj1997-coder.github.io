@@ -43,15 +43,15 @@ function updatePanel(kind, ...children) {
   $("updateBody").replaceChildren(...children);
 }
 async function checkForUpdates() {
-  const btn = $("updateBtn");
-  btn.disabled = true;
+  const btn = $("updateBtn");     // in Settings, which closes when it's pressed: the answer shows at the top of the page
+  if (btn) btn.disabled = true;
   updatePanel("checking", el("span", { class: "spinner dark" }), "Checking GitHub for a newer version…");
   try {
     showUpdateStatus(await api("/api/update/check", { method: "POST" }));
   } catch (e) {
     updatePanel("error", el("strong", {}, "Could not check for updates. "), e.message);
   } finally {
-    btn.disabled = false;
+    if (btn) btn.disabled = false;
   }
 }
 function showUpdateStatus(s) {
@@ -91,23 +91,62 @@ async function applyUpdate() {
     "Close the black window and start the app again with start.bat.");
 }
 
-// ---------- theme: dark by default, remembered in this browser; the button goes round dark, light and Monokai, naming the next ----------
+// ---------- theme: dark by default, or light or Monokai, chosen in Settings and remembered in this browser ----------
 const THEMES = [["dark", "Dark"], ["light", "Light"], ["monokai", "Monokai"]];
-const themeAt = () => Math.max(0, THEMES.findIndex(([t]) => t === document.documentElement.dataset.theme));
-function showThemeButton() {
-  const b = $("themeBtn");
+function setTheme(t) {
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem("theme", t);
+}
+
+// ---------- Settings (the menu's button): the app's own settings, the same on every page ----------
+// The theme, the language (in an app with two), the progress file and, in Sora personal, the version and updates. Each game keeps its
+// own Settings button for its game (setupSettings below), which also works in full screen, where the menu is hidden.
+function setupAppSettings() {
+  const b = $("settingsBtn");
   if (!b) return;
-  const now = THEMES[themeAt()], next = THEMES[(themeAt() + 1) % THEMES.length];
-  b.textContent = tr(`${next[1]} theme`);
-  b.title = tr("Now {now}. Themes: dark, light and Monokai", { now: tr(now[1]) });
+  let panel = null;
+  const close = () => { if (panel) { panel.remove(); panel = null; } };
+  const row = (label, help, control) => el("div", { class: "set-row" }, el("div", { class: "set-label" }, label, help ? el("small", {}, help) : ""), control);
+  const choice = (label, options, current, pick) => el("div", { class: "set-choice", role: "radiogroup", "aria-label": label }, ...options.map(([v, name]) => {
+    const x = el("button", { type: "button", class: v === current ? "on" : "", role: "radio", "aria-checked": String(v === current) }, name);
+    x.onclick = () => pick(v);
+    return x;
+  }));
+  function render() {
+    const rows = [row(tr("Theme"), "", choice(tr("Theme"), THEMES.map(([t, name]) => [t, tr(name)]), document.documentElement.dataset.theme || "dark", (t) => { setTheme(t); render(); }))];
+    const L = window.SoraLang;
+    if (L && L.langs.length > 1) {
+      rows.push(row(tr("Language"), "", choice(tr("Language"), L.langs.map((l) => [l, L.names[l] || l]), L.lang, (l) => { if (l !== L.lang) L.set(l); })));
+    }
+    rows.push(el("div", { class: "set-group" }, tr("Your progress")),
+      row(tr("A file with everything you've played"), tr("Save one now and then, and keep it somewhere safe. Restoring a file replaces the progress in this browser."),
+        el("div", { class: "row set-buttons" }, el("button", { type: "button", class: "small", "data-backup-save": "" }, tr("Save backup file")),
+          el("button", { type: "button", class: "small", "data-backup-load": "" }, tr("Restore from a file")))));
+    if (b.hasAttribute("data-updates")) {
+      const v = b.dataset.version;
+      rows.push(el("div", { class: "set-group" }, "Sora"),
+        row(v ? `Version ${v}` : "Sora", "Runs on this computer; updates come from GitHub",
+          el("button", { type: "button", class: "small", id: "updateBtn", title: "Check GitHub for a newer version", onclick: () => { close(); checkForUpdates(); } }, "Check for updates")));
+    }
+    panel.querySelector(".set-body").replaceChildren(...rows);
+  }
+  function open() {
+    if (panel) return;
+    panel = el("div", { class: "set-modal app-settings", role: "dialog", "aria-label": tr("Settings") },
+      el("div", { class: "set-card" },
+        el("div", { class: "set-head" }, el("h2", {}, tr("Settings")), el("button", { type: "button", class: "link", title: tr("Close"), onclick: close }, "✕")),
+        el("div", { class: "set-body" }),
+        el("div", { class: "set-foot" }, el("span"), el("button", { type: "button", class: "primary", onclick: close }, tr("Done")))));
+    panel.addEventListener("pointerdown", (e) => { if (e.target === panel) close(); });
+    panel.addEventListener("click", (e) => { if (e.target.closest("[data-backup-save]")) setTimeout(close, 0); });     // the file is on its way
+    document.body.append(panel);
+    render();
+    panel.querySelector(".set-body button")?.focus();
+  }
+  b.addEventListener("click", open);
+  document.addEventListener("keydown", (e) => { if (panel && e.key === "Escape") { e.preventDefault(); close(); } });
 }
-function toggleTheme() {
-  const next = THEMES[(themeAt() + 1) % THEMES.length][0];
-  document.documentElement.dataset.theme = next;
-  localStorage.setItem("theme", next);
-  showThemeButton();
-}
-showThemeButton();
+setupAppSettings();
 
 // ---------- full screen for a game: buttons with data-fullscreen inside `target` switch it, and so does F ----------
 // Uses the browser's full screen where it can; where it can't (iPhone) the game covers the whole page instead.

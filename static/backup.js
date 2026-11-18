@@ -65,7 +65,7 @@
 
   // ---------- start: a new or wiped browser first takes back what the copy has ----------
   async function start() {
-    if (NO_SERVER) { status(tr("Your progress is kept in this browser. Save a backup file now and then to keep it safe.")); return; }
+    if (NO_SERVER) { status(tr("Your progress is kept in this browser. Now and then, save a backup file in Settings to keep it safe.")); return; }
     const restored = sessionStorage.getItem(RESTORED);
     if (restored) { keepStatus = true; sessionStorage.removeItem(RESTORED); status(`Your progress was restored from the copy on this computer (saved ${stamp(Number(restored))}).`); }
     if (!localStorage.getItem(MARK)) {

@@ -23,19 +23,22 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.":
     "Прогулка по Масджид аль-Харам в Мекке: площадь под часовой башней, ворота короля Абдул-Азиза, Матаф и Кааба, затем от Сафы до Марвы. Построена по OpenStreetMap и фотографиям с открытой лицензией. Работает без интернета.",
   "Your progress stays in this browser": "Прогресс хранится в этом браузере",
-  "Dark theme": "Тёмная тема",
-  "Light theme": "Светлая тема",
-  "Monokai theme": "Тема Monokai",
-  "Dark": "тёмная",
-  "Light": "светлая",
-  "Monokai": "Monokai",
-  "Now {now}. Themes: dark, light and Monokai": "Сейчас: {now}. Темы: тёмная, светлая и Monokai",
 
-  // ---------- buttons over a game, settings, full screen ----------
+  // ---------- Settings (the menu's button) ----------
+  "Theme, language, backup file": "Тема, язык, файл с копией",
+  "Theme": "Тема",
+  "Dark": "Тёмная",
+  "Light": "Светлая",
+  "Monokai": "Monokai",
+  "Language": "Язык",
+  "Your progress": "Ваш прогресс",
+  "A file with everything you've played": "Файл со всем, что вы прошли",
+  "Save one now and then, and keep it somewhere safe. Restoring a file replaces the progress in this browser.":
+    "Время от времени сохраняйте его и храните в надёжном месте. Восстановление из файла заменяет прогресс в этом браузере.",
+
+  // ---------- buttons over a game, a game's settings, full screen ----------
   "Save backup file": "Сохранить копию в файл",
-  "Save all your progress as a file to keep somewhere safe": "Сохранить весь прогресс в файл, чтобы хранить его в надёжном месте",
   "Restore from a file": "Восстановить из файла",
-  "Replace the progress in this browser with a backup file": "Заменить прогресс в этом браузере копией из файла",
   "Settings": "Настройки",
   "Close": "Закрыть",
   "Reset to defaults": "Вернуть как было",
@@ -48,8 +51,8 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "Play in full screen (F)": "Играть во весь экран (F)",
 
   // ---------- the backup ----------
-  "Your progress is kept in this browser. Save a backup file now and then to keep it safe.":
-    "Прогресс хранится в этом браузере. Время от времени сохраняйте копию в файл, чтобы его не потерять.",
+  "Your progress is kept in this browser. Now and then, save a backup file in Settings to keep it safe.":
+    "Прогресс хранится в этом браузере. Время от времени сохраняйте копию в файл в «Настройках», чтобы его не потерять.",
   "This browser's storage is full, so your latest progress could not be saved. What was saved earlier is safe. Ask in Telegram how to free some space.":
     "Память браузера заполнена, поэтому последний прогресс не сохранился. Всё, что было сохранено раньше, на месте. Спросите в Telegram, как освободить место.",
   "This is not a Sora progress file.": "Это не файл с прогрессом Sora.",

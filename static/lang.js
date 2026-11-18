@@ -1,9 +1,10 @@
 /* The app's language. Apps are in English; an app can also be in Russian (sites.json "languages", the first is its default), chosen
-   with the menu's language button and kept in this browser.
+   in Settings and kept in this browser.
    - tr("English text", { values }) gives an interface text in the app's language, with {name} filled in from the values;
      tr.n(count, "stage", "stages") gives the word for a count.
    - The Russian words are in lang-ru.js, loaded only by apps in Russian, before this file.
    - A page's own texts (the menu, the title) are marked data-t (data-t-title for a tooltip) and put into the language as the page opens.
+   - The language is chosen in Settings (common.js), which calls SoraLang.set().
    Loaded early on every page; in English it changes nothing. */
 "use strict";
 const SoraLang = (() => {
@@ -36,23 +37,13 @@ const SoraLang = (() => {
     }
     if (root === document) document.title = document.title.split(" · ").map((x) => t(x)).join(" · ");
   }
-  // the menu's button names the other language; changing it reloads the page, as everything on it is in the language
+  // changing the language reloads the page, as everything on it is in the language
   function set(next) {
     try { localStorage.setItem("lang", next); } catch { /* full */ }
     location.reload();
   }
-  document.addEventListener("DOMContentLoaded", () => {
-    apply();
-    const b = document.getElementById("langBtn");
-    if (b && langs.length > 1) {
-      const other = langs[(langs.indexOf(lang) + 1) % langs.length];
-      b.textContent = NAMES[other] || other;
-      b.title = lang === "ru" ? "Язык: русский. Нажмите, чтобы переключить" : "Language: English. Click to change";
-      b.hidden = false;
-      b.onclick = () => set(other);
-    }
-  });
-  return { lang, langs, t, n, apply, set };
+  document.addEventListener("DOMContentLoaded", () => apply());
+  return { lang, langs, names: NAMES, t, n, apply, set };
 })();
 window.SoraLang = SoraLang;
 const tr = SoraLang.t;

@@ -6,6 +6,7 @@ window.StudyBooks.push({
  "id": "surahs",
  "name": "Surah Numbers",
  "title": "The 114 surahs of the Quran",
+ "onePart": true,
  "about": "Each surah's number, both ways: the name to its number, and the number to its name",
  "chapters": [
   {

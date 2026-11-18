@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robiyaxon</title>
+<script>
+/* Several apps share this web address: each keeps what it saves (scores, players, theme) apart, under its own name. What was saved
+   before they were kept apart is copied into each app once. SoraApp.keys() lists this app's own keys, for the backup file. */
+(() => {
+  const ns = "robiyaxon:", store = localStorage, p = Storage.prototype, get = p.getItem, set = p.setItem, remove = p.removeItem;
+  const raw = () => Array.from({ length: store.length }, (_, i) => store.key(i));
+  if (get.call(store, ns + "since") === null) {
+    for (const k of raw()) if (!/^[a-z0-9-]+:/.test(k)) { try { set.call(store, ns + k, get.call(store, k)); } catch { /* full */ } }
+    try { set.call(store, ns + "since", String(Date.now())); } catch { /* full */ }
+  }
+  p.getItem = function (k) { return get.call(this, this === store ? ns + k : k); };
+  p.setItem = function (k, v) { return set.call(this, this === store ? ns + k : k, v); };
+  p.removeItem = function (k) { return remove.call(this, this === store ? ns + k : k); };
+  window.SoraApp = { id: "robiyaxon", keys: () => raw().filter((k) => k.startsWith(ns) && k !== ns + "since").map((k) => k.slice(ns.length)) };
+})();
+</script>
+<script src="/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "robiyaxon"; window.SORA_STATIC = true;</script>
+<link rel="icon" href="/robiyaxon/icon-192.png">
+<link rel="manifest" href="/robiyaxon/app.webmanifest">
+<link rel="apple-touch-icon" href="/robiyaxon/icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/robiyaxon/"><span class="brand-mark">R</span>Robiyaxon</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one"><span class="ov-label">Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/robiyaxon/" aria-current="page">Home</a>
+  
+  <div class="nav-label">Study</div>
+  
+  <a class="nav-item" href="/robiyaxon/study-quest/" >Study Quest</a>
+  
+  
+  <div class="nav-label">Games</div>
+  
+  <a class="nav-item" href="/robiyaxon/walks/" >Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local">Your progress stays in this browser</span>
+    <button class="small" id="themeBtn" onclick="toggleTheme()" title="Themes: dark, light and Monokai">Light theme</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  
+<div class="page-title">
+  <div class="ov-label">Robiyaxon</div>
+  <h1>Games</h1>
+  <p>Pick a game.</p>
+</div>
+
+<h2 class="topic-head">Study</h2>
+<div class="tools">
+  
+  <a class="tool-card compact" href="/robiyaxon/study-quest/" title="Anatomy, Organic Chemistry and Pathology, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule. One example chapter each so far.&#10;Input: Nothing to upload: the game runs in the browser">
+    <h3>Study Quest</h3><span class="open">→</span>
+  </a>
+  
+</div>
+
+<h2 class="topic-head">Games</h2>
+<div class="tools">
+  
+  <a class="tool-card compact" href="/robiyaxon/walks/" title="A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.&#10;Input: Nothing to upload: the walks run in the browser">
+    <h3>Walks</h3><span class="open">→</span>
+  </a>
+  
+</div>
+
+<div class="tools">
+  
+</div>
+
+</main>
+</div>
+<script src="/static/common.js"></script>
+<script src="/static/backup.js"></script>
+
+</body>
+</html>

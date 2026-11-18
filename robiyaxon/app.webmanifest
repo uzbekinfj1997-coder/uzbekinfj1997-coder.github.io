@@ -1,0 +1,30 @@
+{
+ "name": "Robiyaxon",
+ "short_name": "Robiyaxon",
+ "description": "Robiyaxon: games and walks, in the browser.",
+ "start_url": "/robiyaxon/",
+ "scope": "/robiyaxon/",
+ "display": "standalone",
+ "background_color": "#07090d",
+ "theme_color": "#07090d",
+ "icons": [
+  {
+   "src": "/robiyaxon/icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "/robiyaxon/icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any"
+  },
+  {
+   "src": "/robiyaxon/icon-maskable.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "maskable"
+  }
+ ]
+}

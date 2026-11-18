@@ -35,7 +35,8 @@
   let seen = read(SEEN_KEY, null) && new Set(read(SEEN_KEY, []));
   let screen = "home", current = null, polling = false;
 
-  const partner = () => room?.members.find((m) => m.id !== me?.id) || null;
+  // the partner, or, before they've joined, the place kept for them: you can play your part straight away (the user, 18.11.2026)
+  const partner = () => room?.members.find((m) => m.id !== me?.id) || (room && me ? { id: me.id === "a" ? "b" : "a", name: "your partner", waiting: true } : null);
   const nameOf = (id) => (id === me?.id ? "You" : room?.members.find((m) => m.id === id)?.name || "?");
   const view = (...kids) => main.replaceChildren(...kids);
   const btn = (label, onclick, primary = false, cls = "") => el("button", { type: "button", class: `${primary ? "primary" : ""} ${cls}`.trim(), onclick }, label);
@@ -119,8 +120,9 @@
   // the other's new challenges and results: a chime and a line at the top, once each
   function announce() {
     const p = partner();
-    if (!p) return;
+    if (!p || p.waiting) return;
     const fresh = [];
+    if (!seen?.has(`joined:${p.id}`)) fresh.push([`joined:${p.id}`, room.duels.some((d) => d.by === me.id) ? `${p.name} joined: your duels are waiting for them` : `${p.name} joined`]);
     for (const d of room.duels) {
       if (d.by === p.id && d.results[p.id] && !seen.has(d.id)) fresh.push([d.id, `${p.name} challenged you: ${RANGES[d.range][2]}, ${d.results[p.id].points} points to beat`]);
       if (d.results[p.id] && d.by === me.id && !seen.has(`${d.id}:${p.id}`)) {
@@ -137,7 +139,7 @@
   }
   // the screens that show the room are drawn again when it changes; a question being played is left alone
   function refresh() {
-    if (screen === "home" || screen === "invite") home();
+    if (screen === "home") home();
     else if (screen === "result" && current) result(current);
   }
 
@@ -176,8 +178,11 @@
     // a new place starts with every later challenge announced; a place taken back starts quietly
     const done = (r, name, back = false) => {
       me = { room: code, id: r.me, name }; keep(ME_KEY, me);
-      seen = back ? null : new Set(); keep(SEEN_KEY, back ? null : []);
+      // the one joining knows who's there already: only what the other does from now on (and the duels waiting) is announced
+      seen = back ? null : new Set(r.members.filter((m) => m.id !== r.me).map((m) => `joined:${m.id}`));
+      keep(SEEN_KEY, seen && [...seen]);
       take(r); history.replaceState(null, "", location.pathname); live(true); home();
+      announce();       // the duels already waiting for the one who's just joined
     };
     if (st.members.length < 2) {
       return view(box("sd-turn", "Surah Duel", `${st.members[0].name} invites you to a duel room`,
@@ -188,27 +193,25 @@
     view(box("sd-turn", "Surah Duel", "Which of you is this?", el("p", {}, `This room is ${st.members[0].name} and ${st.members[1].name}'s. Pick your name to carry on here.`),
       el("div", { class: "row" }, ...st.members.map((m) => btn(`I'm ${m.name}`, async () => done(await call({}, { op: "join", room: code, as: m.id }), m.name, true), true)))));
   }
-  function invite() {
-    screen = "invite";
+  function inviteBox() {
     const link = `${location.origin}${location.pathname}#join=${me.room}`;
     const share = async () => {
       try { if (navigator.share) return await navigator.share({ title: "Surah Duel", text: `${me.name} invites you to Surah Duel`, url: link }); } catch { return; }
       copy();
     };
     const copy = () => navigator.clipboard?.writeText(link).then(() => toast("The link is copied: paste it in a message"), () => {});
-    view(el("div", { class: "sd-grid" },
-      box("sd-turn sd-wide", "Surah Duel · your room is ready", "Invite the one you want to duel with",
-        el("p", {}, "Send them this link (Telegram, WhatsApp or any message). When they open it on their phone and type their name, you're both in, and this page changes by itself."),
-        el("div", { class: "sd-link" }, link),
-        el("div", { class: "row" }, btn("Share the link", share, true), btn("Copy", copy)),
-        el("p", { class: "hint" }, "Keep the link between the two of you: anyone with it could take the second place."))));
+    return box("sd-wait sd-wide", "Invite your partner", "Waiting for them to join",
+      el("p", {}, "Send them this link (Telegram, WhatsApp or any message). When they open it and type their name, they're in, and they'll find your duels waiting with your scores. You can start playing now."),
+      el("div", { class: "sd-link" }, link),
+      el("div", { class: "row" }, btn("Share the link", share), btn("Copy", copy)),
+      el("p", { class: "hint" }, "Keep the link between the two of you: anyone with it could take the second place."));
   }
 
   // ---------- the numbers: score, streak, the week, what you both missed ----------
-  const finished = () => room.duels.filter((d) => room.members.every((m) => d.results[m.id]));
+  const finished = () => (room.members.length < 2 ? [] : room.duels.filter((d) => room.members.every((m) => d.results[m.id])));
   function tally() {
     const wins = {}, p = partner();
-    for (const m of room.members) wins[m.id] = 0;
+    for (const m of [...room.members, p]) wins[m.id] = 0;
     let draws = 0;
     for (const d of finished()) {
       const a = d.results[me.id].points, b = d.results[p.id].points;
@@ -219,7 +222,7 @@
   const dayOf = (t) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
   function together() {
     const days = room.members.map((m) => new Set(room.duels.filter((d) => d.results[m.id]).map((d) => dayOf(d.results[m.id].at))));
-    const both = (t) => days.every((s) => s.has(t));
+    const both = (t) => days.length === 2 && days.every((s) => s.has(t));
     let day = dayOf(Date.now()), streak = 0;
     if (!both(day)) day = dayOf(day - 864e5 / 2);      // today isn't over: the streak can still count from yesterday
     while (both(day)) { streak++; day = dayOf(day - 864e5 / 2); }
@@ -247,7 +250,7 @@
       const code = (location.hash.match(/join=([A-Za-z0-9_-]{24})/) || [])[1];
       return code ? joinScreen(code) : welcome();
     }
-    if (!room || room.members.length < 2) { invite(); return; }
+    if (!room) { view(el("p", { class: "hint" }, "Opening the duel room…")); poll(true); return; }
     screen = "home";
     const p = partner(), { wins, draws } = tally(), { streak, right } = together();
     const mine = (d) => d.results[me.id], theirs = (d) => d.results[p.id], rightOf = (r) => r.answers.filter((a) => a.ok).length;
@@ -260,12 +263,13 @@
       el("section", { class: "sd-score" },
         el("div", { class: "who" }, el("small", {}, "You"), el("b", {}, me.name)),
         el("div", { class: "vs" }, `${wins[me.id]} – ${wins[p.id]}`, el("small", {}, draws ? `duels won · ${draws} drawn` : "duels won")),
-        el("div", { class: "who" }, el("small", {}, "Your partner"), el("b", {}, p.name)),
+        el("div", { class: "who" }, el("small", {}, "Your partner"), el("b", {}, p.waiting ? "Not joined yet" : p.name)),
         el("div", { class: "sd-together" },
           el("span", {}, "Together streak: ", el("b", {}, `${streak} day${streak === 1 ? "" : "s"}`)),
           el("span", {}, "This week, between you: ", el("b", {}, `${right} / ${GOAL} right answers`)),
           el("span", { class: "sd-meter", "aria-hidden": "true" }, el("i", { style: `width:${Math.min(100, Math.round((right / GOAL) * 100))}%` })))),
       el("div", { class: "sd-grid" },
+        p.waiting ? inviteBox() : "",
         turn.length ? box("sd-turn", "Your turn", `${turn.length} duel${turn.length === 1 ? "" : "s"} waiting for you`,
           el("ul", { class: "sd-list" }, ...turn.slice(0, 6).map((d) => el("li", {},
             el("span", {}, `${nameOf(d.by)} challenged you · ${RANGES[d.range][2]} `, el("br"), el("b", {}, `${nameOf(d.by)}: ${rightOf(theirs(d))} of ${d.qs.length} right, ${theirs(d).points} points`), " ",

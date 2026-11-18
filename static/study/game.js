@@ -4,7 +4,7 @@
    rank. Books come from study/*.js and from list files imported in Memory Palace. Everything is kept in this browser. */
 "use strict";
 const StudyCore = (() => {
-  const DAY = 864e5, PASS = 0.8, KEY = "sora.studyQuest.v1", IMPORT_KEY = "sora.memoryPalace.imported.v1";
+  const DAY = 864e5, PASS = 0.8, KEY = window.SORA_BOOK ? `sora.studyQuest.${window.SORA_BOOK}.v1` : "sora.studyQuest.v1", IMPORT_KEY = "sora.memoryPalace.imported.v1";
   // review gaps in days, capped at 12 so every passed stage comes back several times before the exam
   const INTERVALS = [1, 3, 6, 12];
   // ranks: an audit firm's for Sora personal (SBR); a school's on the websites (Maryamxon's subjects)
@@ -28,6 +28,14 @@ const StudyCore = (() => {
 
   function load() {
     try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s && s.lists) return { xp: 0, streak: { last: null, days: 0 }, ...s }; } catch { /* fresh */ }
+    // a website's subject is a game of its own, with its own progress. What was played while the subjects shared one game is carried
+    // over: this subject's stages, with the points and the streak
+    if (window.SORA_BOOK) try {
+      const old = JSON.parse(localStorage.getItem("sora.studyQuest.v1") || "null"), b = (window.StudyBooks || []).find((x) => x.id === window.SORA_BOOK);
+      const mine = (id) => id.startsWith(`${b.id}:`) || b.chapters.some((c) => c.lists.some((l) => l.id === id));
+      const lists = old?.lists && b ? Object.fromEntries(Object.entries(old.lists).filter(([id]) => mine(id))) : {};
+      if (Object.keys(lists).length) return { xp: 0, streak: { last: null, days: 0 }, ...old, lists };
+    } catch { /* fresh */ }
     return { lists: {}, xp: 0, streak: { last: null, days: 0 } };
   }
   const save = (p) => { try { localStorage.setItem(KEY, JSON.stringify(p)); } catch { /* storage full */ } };
@@ -258,13 +266,24 @@ window.StudyCore = StudyCore;
   const minutes = (w) => Math.round(w.marks * MIN_PER_MARK);
   const clock = (sec) => `${sec < 0 ? "−" : ""}${Math.floor(Math.abs(sec) / 60)}:${String(Math.floor(Math.abs(sec) % 60)).padStart(2, "0")}`;
   const words = (t) => (t.trim().match(/\S+/g) || []).length;
+  // a section of Home, as a card of its own: a colour and a sign for each kind, a label, a title, one line, its buttons; anything longer
+  // folded away under "more" so the cards stay small and side by side
+  function box(kind, sign, label, title, line, actions = [], more = [], moreLabel = "More") {
+    const rest = more.filter(Boolean);
+    return el("section", { class: `sq-box sq-${kind}` },
+      el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign", "aria-hidden": "true" }, sign), el("small", {}, label)),
+      title ? el("b", { class: "sq-box-title" }, title) : "",
+      line ? (line instanceof Node ? line : el("p", { class: "hint" }, line)) : "",
+      actions.filter(Boolean).length ? el("div", { class: "row sq-act" }, ...actions.filter(Boolean)) : "",
+      rest.length ? el("details", { class: "sq-more" }, el("summary", {}, moreLabel), ...rest) : "");
+  }
+  const dash = (...cards) => cards.some(Boolean) ? el("div", { class: "sq-dash" }, ...cards) : "";
   function writtenCard(b) {
     if (!b.written?.length) return "";
     const n = wstore().attempts.length;
-    return el("section", { class: "sq-written-card" },
-      el("div", {}, el("small", {}, "All exam questions"), el("b", {}, "Written practice"),
-        el("p", { class: "hint" }, `All ${b.kit?.length || 0} questions in your Exam Kit, newest exam first, and ${b.written.length} of my own. Pick any to answer against the clock, then ${FRIENDS ? "compare it with the answer" : "send it for marking"}${n ? ` · ${n} answer${n === 1 ? "" : "s"} written so far` : ""}.`)),
-      btn("Open the list", () => written(b), true));
+    return box("written-card", "✍️", "All exam questions", "Written practice",
+      `${b.kit?.length || 0} Kit questions, newest exam first, and ${b.written.length} of mine${n ? ` · ${n} written so far` : ""}`,
+      [btn("Open the list", () => written(b), true)]);
   }
   function written(b) {
     screen = "written";
@@ -502,10 +521,9 @@ window.StudyCore = StudyCore;
     const seen = new Set(readList(SEEN_KEY)), fresh = marksCached().filter((m) => !seen.has(markKey(m)) && findW(b, m.id));
     if (!fresh.length) return "";
     const m = fresh[fresh.length - 1], w = findW(b, m.id);
-    return el("section", { class: "sq-marked" },
-      el("div", {}, el("small", {}, "Marked by Claude"), el("b", {}, `${isKit(w) ? kitName(w) : w.title}: ${m.score} out of ${m.of}`),
-        el("p", { class: "hint" }, fresh.length > 1 ? `And ${fresh.length - 1} more marking${fresh.length > 2 ? "s" : ""} to read in Written practice.` : m.summary || "")),
-      btn("See the marking", () => markingView(b, w, m), true));
+    return box("marked", "📝", "Marked by Claude", `${isKit(w) ? kitName(w) : w.title}: ${m.score} out of ${m.of}`,
+      fresh.length > 1 ? `And ${fresh.length - 1} more marking${fresh.length > 2 ? "s" : ""} to read in Written practice.` : m.summary || "",
+      [btn("See the marking", () => markingView(b, w, m), true)]);
   }
 
   const mixId = (b) => `${b.id}:mix`;
@@ -522,12 +540,10 @@ window.StudyCore = StudyCore;
   function mixCard(b) {
     const pool = C.mixPool(b, prog), chapters = new Set(pool.map((x) => x.c.n)).size, rec = prog.lists[mixId(b)];
     const missedN = pool.filter((x) => prog.miss?.[x.cid]).length;
-    return el("section", { class: "sq-mix" },
-      el("div", {}, el("small", {}, "If you have time"), el("b", {}, "Mixed quiz"),
-        el("p", { class: "hint" }, chapters >= 2 ? `15 questions mixed from the ${chapters} chapters you've studied. You see which chapter only after you answer, as in the exam.${missedN ? ` The ${missedN} you got wrong before come up more often.` : ""}`
-          : "Opens once you've passed Watch out, Compare or Apply stages in two chapters."),
-        rec?.plays ? el("p", { class: "hint" }, `Best so far ${Math.round(rec.best * 100)} % · played ${rec.plays === 1 ? "once" : `${rec.plays} times`}`) : ""),
-      chapters >= 2 ? btn("Play the mixed quiz", () => mixBoss(b), true) : "");
+    return box("mix", "🎲", "If you have time", "Mixed quiz",
+      chapters >= 2 ? `15 questions from ${chapters} chapters, chapter shown after you answer${missedN ? `; the ${missedN} you missed come up more` : ""}.${rec?.plays ? ` Best ${Math.round(rec.best * 100)} %.` : ""}`
+        : "Opens once you've passed Watch out, Compare or Apply stages in two chapters.",
+      [chapters >= 2 ? btn("Play the mixed quiz", () => mixBoss(b), true) : ""]);
   }
   function stageNo(l) { return `${l.chapter.n}.${l.chapter.lists.indexOf(l) + 1}`; }
 
@@ -539,6 +555,8 @@ window.StudyCore = StudyCore;
     const pct = r.next ? Math.round(((prog.xp - r.from) / (r.next[0] - r.from)) * 100) : 100;
     const made = b.chapters.filter((c) => c.lists.length).length, p = C.plan(b, prog);
     const planOn = !!b.plan?.sessions?.length && b.plan.sessions.some((x) => !sessionState(b, x).done);     // the plan's Today card leads
+    // the chapter to carry on with, marked on its tile (not while the plan's Today card says what to do)
+    const nextUp = planOn ? null : (() => { const ns = nextStage(b); return ns?.next ? { chapter: ns.next.chapter, last: ns.last } : null; })();
     if (b.id === "sbr" && !FRIENDS) refreshMarks(() => { if (screen === "home") home(); });
     view(
       books.length > 1 ? el("div", { class: "sq-tabs" }, ...books.map((x) => el("button", { type: "button", class: x.id === b.id ? "on" : "", onclick: () => { bookId = x.id; home(); } }, x.name))) : "",
@@ -552,20 +570,19 @@ window.StudyCore = StudyCore;
         el("span", { class: "sq-passed" }, p.left ? (planOn ? `Study Quest: ${p.total - p.left} of ${p.total} stages passed`
           : `${p.total - p.left} of ${p.total} stages passed · pass ${p.perDay} new stage${p.perDay === 1 ? "" : "s"} a day${p.days > 7 ? ", then use the last week for review" : ""}`) : `All ${p.total} stages passed: keep up the reviews`),
         p.days >= 0 && p.days <= 10 && p.total > p.left ? btn("Final sweep: review every passed stage", () => sweep(b), false, "small") : "") : "",
-      todayCard(b),
-      markedCard(b),
-      dueIds.length ? dueCard(b, lists, dueIds) : "",
-      planOn ? "" : continueCard(b),
-      mixCard(b),
-      writtenCard(b),
-      askedCard(),
-      el("div", { class: "sq-legend" }, el("span", { class: "done" }, "✓ Done"), el("span", { class: "started" }, "In progress"), el("span", { class: "new" }, "Not started")),
+      // the mixed quiz needs two chapters, so a book with one so far doesn't show it
+      dash(todayCard(b), markedCard(b), dueIds.length ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard()),
+      el("div", { class: "sq-chapters-head" }, el("h3", {}, "Chapters"),
+        el("div", { class: "sq-legend" }, el("span", { class: "done" }, "✓ Done"), el("span", { class: "started" }, "In progress"), el("span", { class: "new" }, "Not started"))),
       el("div", { class: "sq-map" }, ...b.chapters.map((c) => {
         const cs = chapterState(c), got = c.lists.reduce((s, l) => s + (prog.lists[l.id]?.stars || 0), 0), max = c.lists.length * 3;
-        const status = cs.state === "done" ? "✓ Done" : cs.state === "started" ? `In progress · ${cs.passedN} of ${cs.total} passed` : cs.state === "new" ? `Not started · ${cs.total} stage${cs.total === 1 ? "" : "s"}` : `Coming${c.pages ? ` · pp. ${c.pages}` : ""}`;
-        const tile = el("button", { type: "button", class: `sq-ch ${cs.state} ${max && got === max ? "full" : ""}`.trim(), onclick: () => chapter(b, c), "aria-label": `Chapter ${c.n}: ${c.title}. ${status}` },
+        const carryOn = nextUp && nextUp.chapter.n === c.n;
+        // what's inside a chapter shows when it's opened: the tile says only how far along it is
+        const status = cs.state === "done" ? "✓ Done" : cs.state === "started" ? "In progress" : cs.state === "new" ? "Not started" : "Coming";
+        const tile = el("button", { type: "button", class: `sq-ch ${cs.state} ${max && got === max ? "full" : ""} ${carryOn ? "next" : ""}`.trim(), onclick: () => chapter(b, c), "aria-label": `Chapter ${c.n}: ${c.title}. ${status}${carryOn ? ". Carry on here" : ""}` },
+          carryOn ? el("span", { class: "sq-next" }, cs.state === "new" && !nextUp.last ? "Start here ▶" : "Continue ▶") : "",
           el("span", { class: "n" }, cs.state === "done" ? "✓" : String(c.n)), el("b", {}, `${cs.state === "done" ? c.n + ". " : ""}${c.title}`),
-          el("small", { class: "st" }, status, c.lists.length && got ? ` · ★ ${got}/${max}` : ""),
+          el("small", { class: "st" }, status),
           c.lists.length ? el("span", { class: "bar" }, el("i", { style: `width:${Math.round((cs.passedN / cs.total) * 100)}%` })) : "");
         tile.disabled = !c.lists.length;
         return tile;
@@ -598,10 +615,9 @@ window.StudyCore = StudyCore;
   function askedCard() {
     const list = asked();
     if (!list.length) return "";
-    return el("details", { class: "card sq-asked" }, el("summary", {}, `My questions (${list.length})`),
-      el("p", { class: "hint" }, "Cards you asked about in Telegram, newest first. The answers are in the chat with the bot."),
-      el("ul", {}, ...list.slice(0, 30).map((q) => el("li", {}, el("small", {}, `${date(q.at)} · ${q.where}`), el("div", {}, q.sentence)))),
-      btn("Clear the list", () => { if (confirm("Clear the list of questions? The Telegram chat is not affected.")) { localStorage.removeItem(ASKED_KEY); home(); } }, false, "link"));
+    return box("asked", "❓", "My questions", `${list.length} card${list.length === 1 ? "" : "s"} asked about`, "The answers are in the chat with the bot.", [],
+      [el("ul", {}, ...list.slice(0, 30).map((q) => el("li", {}, el("small", {}, `${date(q.at)} · ${q.where}`), el("div", {}, q.sentence)))),
+        btn("Clear the list", () => { if (confirm("Clear the list of questions? The Telegram chat is not affected.")) { localStorage.removeItem(ASKED_KEY); home(); } }, false, "link")], "See them");
   }
 
   // the final week: every stage passed so far becomes due again, so the whole book gets one more pass
@@ -635,24 +651,25 @@ window.StudyCore = StudyCore;
       el("ol", {}, ...ss.map((s, j) => el("li", { class: states[j].done ? "done" : j === k ? "now" : "" }, el("span", {}, `${states[j].done ? "✓ " : ""}${s.on ? `${shortDate(s.on)} · ` : ""}${s.title}`),
         states[j].byHand ? btn("Not done", () => { setPlanDone(s.id, false); home(); }, false, "link") : states[j].done ? "" : btn("Done", () => { setPlanDone(s.id, true); home(); }, false, "link")))));
     const coming = up >= 0 ? el("p", { class: "sq-coming" }, el("b", {}, `Coming up on ${longDate(ss[up].on)}:`), ` ${ss[up].title}`) : "";
-    if (k < 0) return el("section", { class: "sq-today" }, el("div", {}, el("small", {}, "Your plan"), el("b", {}, doneN === ss.length ? "Every session done" : "You're ahead of the plan"),
-      el("p", { class: "hint" }, doneN === ss.length ? "Keep up the reviews and the mixed quiz until the exam." : "Nothing more is planned before the day below. Pick any question in Written practice, or play your reviews.")), coming, whole);
+    if (k < 0) return box("today", "📅", "Your plan", doneN === ss.length ? "Every session done" : "You're ahead of the plan",
+      doneN === ss.length ? "Keep up the reviews and the mixed quiz until the exam." : "Nothing more is planned before the day below.", [], [coming, whole], "The plan");
     const s = ss[k], x = states[k], w = x.kit, draft = w && st.drafts[w.id]?.text;
-    // what to do, step by step
+    // what to do, step by step (folded away: the card keeps the title, one line and the buttons)
     const steps = w ? [`Read the question in your Exam Kit: ${kitPage(w.q)}.`, `Press Start. A ${minutes(w)}-minute clock runs while you type your answer.`, ...(s.sheet ? [s.sheet] : []),
         "When you've finished, press Finish, then Send for marking. I'll mark it and tell you what to go over."]
-      : x.stages.length ? ["Play each stage below until it's passed. Cards shows what's in a stage first."] : s.steps || [];
+      : x.stages.length ? ["Play each stage until it's passed. Cards shows what's in a stage first."] : s.steps || [];
     const rows = x.stages.map((l) => el("div", { class: "sq-trow" },
       el("span", {}, el("b", {}, l.name), el("small", { class: "hint" }, C.passed(prog, l.id) ? " · ✓ passed" : prog.lists[l.id]?.plays ? ` · best ${Math.round(prog.lists[l.id].best * 100)} %` : "")),
       el("span", { class: "row" }, btn("Cards", () => cards(b, l.chapter, l), false, "small"), btn("Play", () => quiz(b, l.chapter, l), !C.passed(prog, l.id), "small"))));
     const done = () => { setPlanDone(s.id, true); home(); };
-    return el("section", { class: "sq-today" },
-      el("div", {}, el("small", {}, s.on ? `Today · ${longDate(s.on)}` : `Today · session ${k + 1} of ${ss.length}`), el("b", {}, s.title),
-        w ? el("p", { class: "sq-what" }, `${kitWhat(w)} · ${w.marks} marks · ${minutes(w)} minutes`) : "", s.note ? el("p", { class: "hint" }, s.note) : ""),
-      el("ol", { class: "sq-todo" }, ...steps.map((t) => el("li", {}, t))),
-      ...rows,
-      el("div", { class: "row sq-act" }, w ? btn(draft ? "Continue" : "Start", () => attempt(b, w), true) : "", w || x.stages.length ? btn("Mark as done", done, false, "link") : btn("Done", done, true)),
-      coming, whole);
+    const nextL = x.stages.find((l) => !C.passed(prog, l.id));
+    const line = w ? el("p", { class: "sq-what" }, `${kitWhat(w)} · ${w.marks} marks · ${minutes(w)} minutes`)
+      : x.stages.length ? `${x.stages.filter((l) => C.passed(prog, l.id)).length} of ${x.stages.length} stages passed` : s.note || "";
+    const actions = w ? [btn(draft ? "Continue" : "Start", () => attempt(b, w), true), btn("Mark as done", done, false, "link")]
+      : x.stages.length ? [nextL ? btn(`Play ${nextL.name.split(" ")[0]}`, () => quiz(b, nextL.chapter, nextL), true) : "", btn("Mark as done", done, false, "link")]
+      : [btn("Done", done, true)];
+    return box("today", "📅", s.on ? `Today · ${longDate(s.on)}` : `Today · session ${k + 1} of ${ss.length}`, s.title, line, actions,
+      [w && s.note ? el("p", { class: "hint" }, s.note) : "", el("ol", { class: "sq-todo" }, ...steps.map((t) => el("li", {}, t))), ...rows, coming, whole], "How to do it");
   }
   // the stages due for review: a few a day (Settings), the chapters the exam leans on most first, then the longest overdue
   function dueCard(b, lists, dueIds) {
@@ -662,21 +679,10 @@ window.StudyCore = StudyCore;
     // reviews already done today: passed stages played again today
     const doneToday = lists.filter((l) => C.passed(prog, l.id) && prog.lists[l.id].plays > 1 && prog.lists[l.id].last >= today).length;
     const shown = cap ? due.slice(0, Math.max(0, cap - doneToday)) : due, waiting = due.length - shown.length;
-    if (!shown.length) return el("section", { class: "sq-due" }, el("small", {}, "Reviews"), el("h3", {}, "Today's reviews done"),
-      el("p", { class: "hint" }, `${waiting} more ${waiting === 1 ? "waits" : "wait"} for another day; change how many a day in Settings.`));
-    return el("section", { class: "sq-due" }, el("small", {}, "Reviews · a few minutes each"), el("h3", {}, `Play ${shown.length} stage${shown.length === 1 ? "" : "s"} again today`),
-      el("p", { class: "hint" }, `Stages you've passed come back after a few days, so you don't forget them.${waiting ? ` ${waiting} more ${waiting === 1 ? "is" : "are"} waiting for other days.` : ""}`),
-      el("div", { class: "row" }, ...shown.map((l) => btn(l.name, () => quiz(b, l.chapter, l), true))));
-  }
-  function continueCard(b) {
-    const ns = nextStage(b);
-    if (!ns) return "";
-    const { last, next } = ns, lp = last && prog.lists[last.id];
-    return el("section", { class: "sq-continue" },
-      el("div", {}, el("small", {}, next ? (last ? "Continue where you left off" : "Start here") : "Every stage passed"),
-        next ? el("b", {}, `Chapter ${next.chapter.n} · ${next.name}`) : el("b", {}, "Keep up the reviews below"),
-        last ? el("p", { class: "hint" }, `Last studied ${date(lp.last)}: ${last.name} (best ${Math.round(lp.best * 100)} %${C.passed(prog, last.id) ? ", passed" : ", not passed yet"})`) : ""),
-      next ? el("div", { class: "row" }, btn("Cards", () => cards(b, next.chapter, next)), btn("Play", () => quiz(b, next.chapter, next), true), btn(`Chapter ${next.chapter.n}`, () => chapter(b, next.chapter), false, "link")) : "");
+    if (!shown.length) return box("due", "🔁", "Reviews", "Today's reviews done", `${waiting} more ${waiting === 1 ? "waits" : "wait"} for another day; change how many a day in Settings.`);
+    return box("due", "🔁", "Reviews · a few minutes each", `Play ${shown.length} stage${shown.length === 1 ? "" : "s"} again today`,
+      `So you don't forget them.${waiting ? ` ${waiting} more wait${waiting === 1 ? "s" : ""} for other days.` : ""}`,
+      shown.map((l) => { const x = btn(l.name, () => quiz(b, l.chapter, l), false, "small sq-chip"); x.title = l.name; return x; }));
   }
 
   // a stage can be stored along a route in Memory Palace (the method of loci); once stored, recall it there

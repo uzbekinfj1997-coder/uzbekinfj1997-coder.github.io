@@ -2,8 +2,9 @@
    (pick the right answer against the clock, with hearts and combos). 80 % passes the stage, opens the next one and
    puts it on a review schedule; a chapter ends with a boss round of questions from all its lists. Points raise your
    rank. Books come from study/*.js and from list files imported in Memory Palace. Everything is kept in this browser.
-   In the apps with a club (a duel page: Aziza's, Maryamxon's, Robiyaxon's, 18.11.2026) rounds also earn coins (roundCoins, sent by
-   static/coins.js to the club), and each subject has a Reviews section: what's due, played one after another, for double coins. */
+   Coins (18.11.2026; every app since 19.11.2026): rounds earn them (roundCoins; static/coins.js keeps them), every stage, chapter,
+   final round, review and the subject itself shows what it can still give (its pot, in gold), a round counts its coins as you answer
+   and shows them against what it could give, and each subject has a Reviews section: what's due, played one after another. */
 "use strict";
 // the books are put into the app's language by study/books-lang.js, loaded before this file
 const StudyCore = (() => {
@@ -185,7 +186,8 @@ window.StudyCore = StudyCore;
   if (FRIENDS) for (const b of window.StudyBooks || []) delete b.plan;
   let prog = C.load(), books = C.books(), bookId = null, timer = null, screen = "home";
   let reviewQueue = [];        // "Review all due": the due stages still to play, one after another
-  const CLUB = !!(window.SoraCoins && window.SORA_CLUB_URL);     // an app with a club (a duel page): rounds earn coins
+  // coins, in every app (19.11.2026): rounds earn them, and every stage, chapter, final round and review shows what it can still give
+  const SC = window.SoraCoins, COINS = !!SC;
   const commit = () => C.save(prog);
 
   const settings = setupSettings(root, "study-quest", [
@@ -565,9 +567,18 @@ window.StudyCore = StudyCore;
     return box("mix", "🎲", tr("If you have time"), tr("Mixed quiz"),
       chapters >= 2 ? `${tr("15 questions from {n} chapters, chapter shown after you answer", { n: chapters })}${missedN ? tr("; the {n} you missed come up more", { n: missedN }) : ""}.${rec?.plays ? ` ${tr("Best {n} %.", { n: Math.round(rec.best * 100) })}` : ""}`
         : tr("Opens once you've passed Watch out, Compare or Apply stages in two chapters."),
-      [chapters >= 2 ? btn(tr("Play the mixed quiz"), () => mixBoss(b), true) : ""]);
+      [chapters >= 2 ? btn(tr("Play the mixed quiz"), () => mixBoss(b), true) : "", chapters >= 2 && COINS ? potEl(mixPot(pool), { big: true }) : ""]);
+  }
+  // the mixed quiz's coins: fifteen questions from the pool, by kind and the clock
+  function mixPot(pool) {
+    const items = pool.map((x) => x.it), n = Math.min(15, items.length), o = potOpts();
+    const avg = items.length ? items.reduce((t, it) => t + SC.weight(C.kindOf(it), o.typed), 0) / items.length : 0;
+    return { total: Math.round(avg * n * o.factor), extras: [], due: false, mult: 1 };
   }
   function stageNo(l) { return `${l.chapter.n}.${l.chapter.lists.indexOf(l) + 1}`; }
+  // a chapter's (or section's) coins on its tile: still to win, and today's when a review is due
+  const chapterPotEl = (cp) => el("span", { class: "sq-chpot" }, el("span", { class: `coin-pot ${cp.total && !(cp.done && !cp.today) ? "" : "calm"}`.trim() }, `🪙 ${num(cp.total)}`),
+    cp.today ? el("span", { class: "coin-tag hot" }, tr("×2 today")) : "");
 
   // ---------- Reviews: a section of its own in every subject of the apps with coins (the user, 18.11.2026), so the reviews get done ----------
   // stages you've passed come back after 1, 3, 6 and 12 days; a review on its day earns double coins, and days in a row earn more
@@ -587,42 +598,61 @@ window.StudyCore = StudyCore;
   }
   function reviewTile(b, lists, dueIds) {
     const passed = lists.filter((l) => C.passed(prog, l.id)), soonest = passed.map((l) => prog.lists[l.id].due).filter((t) => t && t > Date.now()).sort((x, y) => x - y)[0];
-    const status = dueIds.length ? tr("{n} due today{double}", { n: dueIds.length, double: CLUB ? tr(" · double coins") : "" })
+    const status = dueIds.length ? tr("{n} due today{double}", { n: dueIds.length, double: COINS ? tr(" · double coins") : "" })
       : passed.length ? (soonest ? tr("Nothing due · next {when}", { when: when(soonest) }) : tr("Nothing due")) : tr("Pass a stage, and it comes back here");
+    const o = potOpts(), worth = dueIds.reduce((t, id) => t + SC.stagePot(lists.find((l) => l.id === id), prog.lists[id], o).total, 0);
     return el("button", { type: "button", class: `sq-revtile ${dueIds.length ? "due" : ""}`.trim(), onclick: () => reviews(b), "aria-label": `${tr("Reviews")}. ${status}` },
       el("span", { class: "sq-revsign" }, "🔁"), el("span", { class: "sq-revtext" }, el("b", {}, tr("Reviews")), el("small", {}, status)),
+      worth ? el("span", { class: "sq-revpot" }, el("span", { class: "coin-pot big" }, `🪙 +${num(worth)}`), el("span", { class: "coin-tag hot" }, tr("×2 today"))) : "",
       el("span", { class: "sq-revgo" }, dueIds.length ? tr("Today ▶") : "▶"));
   }
   function reviews(b) {
     screen = "reviews";
     const lists = allLists(b), due = C.due(prog, lists.map((l) => l.id)).map((id) => lists.find((l) => l.id === id));
     const later = lists.filter((l) => C.passed(prog, l.id) && prog.lists[l.id].due > Date.now()).sort((x, y) => prog.lists[x.id].due - prog.lists[y.id].due).slice(0, 6);
-    const streak = reviewStreak();
+    const streak = reviewStreak(), o = potOpts(), potOf = (l) => SC.stagePot(l, prog.lists[l.id], o), worth = due.reduce((t, l) => t + potOf(l).total, 0);
     view(head(tr("Reviews"), tr("Stages you've passed come back after 1, 3, 6 and 12 days, so you keep them. Play each again when it's due.")),
       el("div", { class: "sq-dash" },
         el("section", { class: "sq-box sq-due sq-wide" }, el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign" }, "🔁"), el("small", {}, tr("Due today"))),
           el("b", { class: "sq-box-title" }, due.length ? tr("{n} {stages} to review", { n: due.length, stages: tr.n(due.length, "stage", "stages") }) : tr("Nothing due today")),
-          CLUB ? el("p", { class: "hint" }, tr("Reviews earn double coins, and 5 more each when done on time. Days in a row: {n} (7 in a row earns 20 more, 30 earns 100).", { n: streak })) : el("p", { class: "hint" }, tr("Days in a row: {n}", { n: streak })),
-          due.length ? el("div", { class: "row sq-act" }, btn(tr("Review all due ▶"), () => { reviewQueue = due.map((l) => l.id); quiz(b, due[0].chapter, due[0]); }, true)) : "",
+          worth ? el("div", { class: "sq-pot" }, el("span", { class: "coin-pot huge" }, `🪙 +${num(worth)}`), el("span", { class: "coin-tag hot" }, tr("×2 today"))) : "",
+          COINS ? el("p", { class: "hint" }, tr("Reviews earn double coins, and 5 more each when done on time. Days in a row: {n} (7 in a row earns 20 more, 30 earns 100).", { n: streak })) : el("p", { class: "hint" }, tr("Days in a row: {n}", { n: streak })),
+          due.length ? el("div", { class: "row sq-act" }, btn(worth ? tr("Review all due ▶ 🪙 +{n}", { n: num(worth) }) : tr("Review all due ▶"), () => { reviewQueue = due.map((l) => l.id); quiz(b, due[0].chapter, due[0]); }, true)) : "",
           due.length ? el("ul", { class: "sq-revlist" }, ...due.map((l) => el("li", {}, el("span", {}, el("b", {}, l.name), " ", el("small", { class: "hint" }, `${partName(b, l.chapter)} · ${tr("due {when}", { when: when(prog.lists[l.id].due) })}`)),
-            btn(tr("Play"), () => { reviewQueue = []; quiz(b, l.chapter, l); }, false, "small")))) : ""),
+            el("span", { class: "row" }, el("span", { class: "coin-pot" }, `🪙 +${num(potOf(l).total)}`), btn(tr("Play"), () => { reviewQueue = []; quiz(b, l.chapter, l); }, false, "small"))))) : ""),
         later.length ? el("section", { class: "sq-box sq-asked" }, el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign" }, "📅"), el("small", {}, tr("Coming up"))),
           el("ul", { class: "sq-revlist" }, ...later.map((l) => el("li", {}, el("span", {}, l.name), el("small", { class: "hint" }, when(prog.lists[l.id].due)))))) : ""),
       el("div", { class: "row sq-foot" }, btn(tr(onePart(b) ? "← Stages" : bySection(b) ? "← Sections" : "← Chapters"), home, false, "link")));
   }
-  function coinBadge() {
-    const c = SoraCoins.balance(), t = SoraCoins.tierOf(c.earned);
-    return el("a", { class: "sq-coins", href: window.SORA_CLUB_PAGE || "#", title: tr("Your coins and tier: in the club, on the duel page") },
-      el("b", {}, `🪙 ${num(c.balance)}`), el("small", {}, `${t.icon} ${tr(t.name)}`));
+  // ---------- coins on show: what each task can still give (SoraCoins works it out from the book and its progress) ----------
+  const potOpts = () => ({ typed: S.answer === "recall", factor: SC.clockFactor(Number(S.time)), now: Date.now(), today: C.startOfDay(Date.now()) });
+  const TAGS = { ontime: "on time +5", pass: "first pass +10", stars: "★★★ +10", boss: "first win +30" };
+  // a pot: gold and shining while there's more than a replay in it, calm once only replays are left; locked ones show their prize
+  function potEl(pot, { locked = false, big = false } = {}) {
+    if (!COINS || !pot) return "";
+    const calm = !pot.due && !pot.extras.length;
+    return el("div", { class: "sq-pot" },
+      el("span", { class: `coin-pot ${big ? "big" : ""} ${calm ? "calm" : ""} ${locked ? "locked" : ""}`.replace(/\s+/g, " ").trim(), title: tr("Coins this can still give you") },
+        `${locked ? "🔒 " : ""}🪙 +${num(pot.total)}`),
+      calm ? "" : el("div", { class: "coin-tags" }, pot.due ? el("span", { class: "coin-tag hot" }, tr("×2 today")) : "",
+        ...pot.extras.map(([k]) => el("span", { class: "coin-tag" }, tr(TAGS[k])))));
   }
+  // the subject's coins on Home: everything still to win, what's due today, how much is collected; the balance is in the corner
+  function subjectPot(sum) {
+    const pct = sum.once ? Math.round((sum.got / sum.once) * 100) : 0;
+    return el("a", { class: "sq-coins", href: window.SORA_ACCOUNT_PAGE || "#", title: tr("Coins still to win in this subject; your balance is in the corner") },
+      el("small", {}, tr("To win here")), el("span", { class: "coin-pot big" }, `🪙 ${num(sum.total)}`),
+      sum.today ? el("span", { class: "coin-tag hot" }, tr("today 🪙 {n}", { n: num(sum.today) })) : "",
+      el("span", { class: "sq-collected", "aria-hidden": "true" }, el("i", { style: `width:${pct}%` })),
+      el("small", {}, tr("{p} % collected", { p: pct })));
+  }
+  function noteBook(b) { if (COINS) SC.noteBook(b.id, SC.bookSummary(b, prog, potOpts())); }
   // a round's coins: each right answer by how hard it was (typed 2, picked 1, true or false ½, scenarios and orders 1½) and by the clock
   // (none ×0.75, 10 s ×1.25); a review that's due counts double, a replay of a stage already passed and not due a quarter. One-time
   // extras: a first pass +10, three stars +10, a final round +30, a whole chapter or section +50; a review passed on its day +5; 7 days
   // of reviews in a row +20, 30 days +100
   function roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) {
-    const kind = (it) => C.kindOf(it), w = (it) => (kind(it) === "tf" ? 0.5 : ["case", "sort", "order"].includes(kind(it)) ? 1.5 : typed && kind(it) === "sentence" ? 2 : 1);
-    const t = Number(S.time);
-    let n = log.filter((x) => x.ok).reduce((s, x) => s + w(x.item), 0) * (t === 0 ? 0.75 : t <= 10 ? 1.25 : t >= 45 ? 0.9 : 1);
+    let n = log.filter((x) => x.ok).reduce((s, x) => s + SC.weight(C.kindOf(x.item), typed), 0) * SC.clockFactor(Number(S.time));
     const review = !mix && wasDue;
     if (review) n *= 2; else if (!mix && wasPassed) n *= 0.25;
     const tag = `${b.id}:${id}`, where = mix ? tr("Mixed quiz") : l ? l.name : tr("Boss round"), out = [];
@@ -631,6 +661,7 @@ window.StudyCore = StudyCore;
       out.push({ id: `${tag}:ontime:${dayKey()}`, n: 5, why: tr("Review on time: {stage}", { stage: where }), k: "review" });
       prog.reviewDays = [...new Set([...(prog.reviewDays || []), dayKey()])].slice(-60);
       const streak = reviewStreak();
+      prog.reviewsOnTime = (prog.reviewsOnTime || 0) + 1; prog.bestReviewRun = Math.max(prog.bestReviewRun || 0, streak);      // for the medals
       if (streak === 7 || streak === 30) out.push({ id: `${b.id}:streak${streak}:${dayKey()}`, n: streak === 7 ? 20 : 100, why: tr("{n} days of reviews in a row", { n: streak }), k: "review" });
     }
     if (!mix && l && !wasPassed && C.passed(prog, id)) out.push({ id: `${tag}:pass`, n: 10, why: tr("First pass: {stage}", { stage: l.name }), k: "study" });
@@ -644,8 +675,8 @@ window.StudyCore = StudyCore;
     screen = "home"; books = C.books(); reviewQueue = [];        // "Review all due" lasts while its Next review buttons are followed
     const b = book(); bookId = b?.id;
     if (!b) return view(head("No books yet", "Import a list file in Memory Palace to study it here."));
-    const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids);
-    if (CLUB) markClear(lists, dueIds);
+    const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids), o = COINS ? potOpts() : null;
+    if (COINS) markClear(lists, dueIds);
     const streak = prog.streak.last >= C.startOfDay(Date.now()) - C.DAY ? prog.streak.days : 0;
     const one = onePart(b);     // a book in one part (Surah Numbers): its stages on Home, no chapters
     const pct = r.next ? Math.round(((prog.xp - r.from) / (r.next[0] - r.from)) * 100) : 100;
@@ -662,15 +693,16 @@ window.StudyCore = StudyCore;
           el("small", {}, r.next ? tr("{xp} / {next} points to {rank}", { xp: num(prog.xp), next: num(r.next[0]), rank: tr(r.next[1]) })
             : tr("{xp} {points}", { xp: num(prog.xp), points: tr.n(prog.xp, "points", "points") }))),
         el("div", { class: "sq-streak" }, el("b", {}, String(streak)), el("small", {}, tr.n(streak, "days in a row", "days in a row"))),
-        CLUB ? coinBadge() : ""),
+        COINS ? subjectPot(SC.bookSummary(b, prog, o)) : ""),
       p ? el("section", { class: "sq-plan" }, el("b", {}, p.days > 0 ? `${p.days} day${p.days === 1 ? "" : "s"} to the exam` : p.days === 0 ? "The exam is today. Good luck!" : "The exam date has passed"),
         p.days > 0 ? el("span", {}, new Date(p.exam).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })) : "",
         el("span", { class: "sq-passed" }, p.left ? (planOn ? `Study Quest: ${p.total - p.left} of ${p.total} stages passed`
           : `${p.total - p.left} of ${p.total} stages passed · pass ${p.perDay} new stage${p.perDay === 1 ? "" : "s"} a day${p.days > 7 ? ", then use the last week for review" : ""}`) : `All ${p.total} stages passed: keep up the reviews`),
         p.days >= 0 && p.days <= 10 && p.total > p.left ? btn("Final sweep: review every passed stage", () => sweep(b), false, "small") : "") : "",
-      // the mixed quiz needs two chapters, so a book with one so far doesn't show it; in the apps with coins the reviews are the Reviews bar's
-      dash(todayCard(b), markedCard(b), dueIds.length && !CLUB ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard(b)),
-      CLUB ? reviewTile(b, lists, dueIds) : "",
+      // the mixed quiz needs two chapters, so a book with one so far doesn't show it; the reviews are the Reviews bar's, but for a book
+      // with a study plan (SBR), whose card keeps to the plan's reviews a day
+      dash(todayCard(b), markedCard(b), dueIds.length && (!COINS || b.plan) ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard(b)),
+      COINS ? reviewTile(b, lists, dueIds) : "",
       ...(one ? [el("div", { class: "sq-chapters-head" }, el("h3", {}, tr("Stages"))), ...stageBoard(b, b.chapters[0])] : [
       el("div", { class: "sq-chapters-head" }, el("h3", {}, partsName(b)),
         el("div", { class: "sq-legend" }, el("span", { class: "done" }, tr("✓ Done")), el("span", { class: "started" }, tr("In progress")), el("span", { class: "new" }, tr("Not started")))),
@@ -684,10 +716,12 @@ window.StudyCore = StudyCore;
           carryOn ? el("span", { class: "sq-next" }, tr(cs.state === "new" && !nextUp.last ? "Start here ▶" : "Continue ▶")) : "",
           el("span", { class: "n" }, cs.state === "done" ? "✓" : String(c.n)), el("b", {}, `${cs.state === "done" ? c.n + ". " : ""}${c.title}`),
           el("small", { class: "st" }, status),
+          COINS && c.lists.length ? chapterPotEl(SC.chapterPot(b, c, prog, o)) : "",
           c.lists.length ? el("span", { class: "bar" }, el("i", { style: `width:${Math.round((cs.passedN / cs.total) * 100)}%` })) : "");
         tile.disabled = !c.lists.length;
         return tile;
       }))]));
+    noteBook(b);
   }
 
   // ---------- questions about a card: asked through the Telegram bot, kept in a list here ----------
@@ -783,7 +817,9 @@ window.StudyCore = StudyCore;
     if (!shown.length) return box("due", "🔁", tr("Reviews"), tr("Today's reviews done"), tr("{n} more {wait} for another day; change how many a day in Settings.", { n: waiting, wait: tr.n(waiting, "waits", "wait") }));
     return box("due", "🔁", tr("Reviews · a few minutes each"), tr("Play {n} {stages} again today", { n: shown.length, stages: tr.n(shown.length, "stage", "stages") }),
       `${tr("So you don't forget them.")}${waiting ? ` ${tr("{n} more {wait} for other days.", { n: waiting, wait: tr.n(waiting, "waits", "wait") })}` : ""}`,
-      shown.map((l) => { const x = btn(l.name, () => quiz(b, l.chapter, l), false, "small sq-chip"); x.title = l.name; return x; }));
+      shown.map((l) => { const x = btn(l.name, () => quiz(b, l.chapter, l), false, "small sq-chip"); x.title = l.name;
+        if (COINS) x.append(" ", el("span", { class: "coin-pot calm" }, `🪙 +${num(SC.stagePot(l, prog.lists[l.id], potOpts()).total)}`));
+        return x; }));
   }
 
   // a stage can be stored along a route in Memory Palace (the method of loci); once stored, recall it there
@@ -801,7 +837,7 @@ window.StudyCore = StudyCore;
   // ---------- a chapter: its stages and the boss round ----------
   // a chapter's stages and its boss round: on the chapter's page, or on Home for a book in one part
   function stageBoard(b, c) {
-    const allPassed = c.lists.every((l) => C.passed(prog, l.id)), boss = prog.lists[bossId(b, c)], one = onePart(b);
+    const allPassed = c.lists.every((l) => C.passed(prog, l.id)), boss = prog.lists[bossId(b, c)], one = onePart(b), o = COINS ? potOpts() : null;
     const tracks = TRACKS.filter(([t]) => c.lists.some((l) => trackOf(l) === t));
     return [
       // the kinds of practice side by side, left to right, each with its stages stacked underneath; one kind alone needs no heading, and
@@ -813,6 +849,7 @@ window.StudyCore = StudyCore;
         return el("section", { class: `sq-stage ${ok ? "" : "locked"} ${C.passed(prog, l.id) ? "passed" : ""} ${isNext ? "next" : ""}`.replace(/\s+/g, " ").trim() },
           isNext ? el("span", { class: "sq-next" }, tr("Next")) : "",
           el("div", { class: "sq-stage-head" }, el("span", { class: "n" }, String(c.lists.filter((x, j) => j <= k && trackOf(x) === t).length)), el("b", {}, l.name), starRow(p?.stars || 0)),
+          COINS ? potEl(SC.stagePot(l, p, o), { locked: !ok }) : "",
           el("p", { class: "hint" }, l.about || tr("{n} {items}", { n: l.items.length, items: tr.n(l.items.length, "item", "items") })),
           el("div", { class: "sq-stage-foot" }, el("small", { class: `st ${C.passed(prog, l.id) ? "done" : p?.plays ? "started" : ""}`.trim() }, !ok ? tr("Pass the stage before to open it")
             : C.passed(prog, l.id) ? `${tr("✓ Passed · best {n} %", { n: Math.round(p.best * 100) })}${p.due ? tr(" · review {when}", { when: when(p.due) }) : ""}`
@@ -822,13 +859,21 @@ window.StudyCore = StudyCore;
       }))))),
       el("div", { class: "sq-stages" }, c.lists.length > 1 ? el("section", { class: `sq-stage boss ${allPassed || !S.order ? "" : "locked"}`.trim() },
         el("div", { class: "sq-stage-head" }, el("span", { class: "n" }, "★"), el("b", {}, tr("Boss round")), starRow(boss?.stars || 0)),
+        COINS ? potEl(SC.bossPot(b, c, prog, o), { locked: !(allPassed || !S.order), big: true }) : "",
         el("p", { class: "hint" }, tr(one ? "15 questions from every stage, faster clock." : bySection(b) ? "15 questions from every stage of the section, faster clock." : "15 questions from every stage of the chapter, faster clock.")),
         allPassed || !S.order ? el("div", { class: "row" }, btn(tr("Fight the boss"), () => quiz(b, c, null), true)) : el("small", {}, tr("Pass every stage to open it"))) : "")];
+  }
+  function partPotEl(b, c) {
+    const cp = SC.chapterPot(b, c, prog, potOpts());
+    return el("div", { class: "sq-partpot" }, el("span", { class: "coin-pot big" }, `🪙 ${num(cp.total)}`), el("b", {}, tr(bySection(b) ? "to win in this section" : "to win in this chapter")),
+      cp.today ? el("span", { class: "coin-tag hot" }, tr("today 🪙 {n}", { n: num(cp.today) })) : "",
+      cp.done ? "" : el("span", { class: "coin-tag" }, tr("+50 for finishing it")));
   }
   function chapter(b, c) {
     if (onePart(b)) return home();      // its stages are on Home
     screen = "chapter";
     view(head(bySection(b) ? c.title : tr("Chapter {n}: {title}", { n: c.n, title: c.title }), `${c.pages ? tr("Book pages {pages}. ", { pages: c.pages }) : ""}${tr("Look at the cards, then play the stage. 80 % passes it and opens the next one.")}`),
+      COINS ? partPotEl(b, c) : "",
       ...stageBoard(b, c),
       // Memory Palace is Sora personal's: the websites don't carry it
       el("div", { class: "row sq-foot" }, btn(`← ${partsName(b)}`, home, false, "link"), FRIENDS ? "" : btn("Store a list in Memory Palace", () => (location.href = "/memory-palace/"), false, "link")));
@@ -894,11 +939,17 @@ window.StudyCore = StudyCore;
     const leave = () => (mix ? home() : chapter(b, c));
     let i = 0, hearts = Number(S.hearts), combo = 0, best = 0, gained = 0, left = limit;
     const right = [], missed = [], log = [];
+    // the coins: what the round can give (as its card showed), and the answers' share of it counted as they come
+    const o = COINS ? potOpts() : null;
+    const pot0 = !COINS ? null : mix ? mixPot(C.mixPool(b, prog)) : l ? SC.stagePot(l, prog.lists[l.id], o) : SC.bossPot(b, c, prog, o) || { total: 0, extras: [], mult: 1 };
+    let live = 0;
+    const coinOf = (it) => (COINS ? SC.weight(C.kindOf(it), typed) * o.factor * (pot0.mult ?? 1) : 0);
     const bar = el("div", { class: "sq-hud" }), body = el("div");
     function hud() {
       bar.replaceChildren(el("span", {}, `${Math.min(i + 1, qs.length)} / ${qs.length}`), el("span", {}, tr("{n} pts", { n: num(gained) })),
         el("span", { class: "combo" }, combo > 1 ? tr("Combo x{n}", { n: Math.min(3, 1 + combo * 0.25).toFixed(2).replace(/0$/, "") }) : ""),
         el("span", { class: "hearts" }, hearts ? "♥".repeat(hearts) : S.hearts ? "" : "∞"),
+        COINS ? el("span", { class: "sq-hudcoins", title: tr("Coins this round") }, `🪙 +${num(Math.round(live))}`) : "",
         limit ? el("div", { class: "sq-clock" }, el("i", { style: `width:${(left / limit) * 100}%` })) : "");
     }
     function ask() {
@@ -949,7 +1000,7 @@ window.StudyCore = StudyCore;
     function settle(ok, value) {
       const q = qs[i];
       right.push(ok); log.push({ item: q.item, ok, given: value ?? "" });
-      if (ok) { combo++; best = Math.max(best, combo); gained += C.points(left, limit, combo - 1); }
+      if (ok) { combo++; best = Math.max(best, combo); gained += C.points(left, limit, combo - 1); live += coinOf(q.item); }
       else { combo = 0; missed.push(q.item); if (hearts) hearts--; }
       hud();
       const over = (Number(S.hearts) && hearts === 0) || i === qs.length - 1;
@@ -977,7 +1028,7 @@ window.StudyCore = StudyCore;
     function answered(ok, given, timeUp) {
       const q = qs[i], k = timeUp ? -1 : 0;
       right.push(ok); log.push({ item: q.item, ok, given });
-      if (ok) { combo++; best = Math.max(best, combo); gained += C.points(left, limit, combo - 1); }
+      if (ok) { combo++; best = Math.max(best, combo); gained += C.points(left, limit, combo - 1); live += coinOf(q.item); }
       else { combo = 0; missed.push(q.item); if (hearts) hearts--; }
       hud();
       const over = (Number(S.hearts) && hearts === 0) || i === qs.length - 1;
@@ -1000,13 +1051,18 @@ window.StudyCore = StudyCore;
       const partWasDone = !!c && c.lists.every((x) => C.passed(prog, x.id));
       // typed recall counts fully; so do stages of ordering, comparing, traps and scenarios (they test understanding)
       const mode = typed || items.every((it) => C.kindOf(it) !== "sentence") ? "recall" : "choice", before = C.rank(prog.xp).name, rec = C.record(prog, id, score, gained, Date.now(), mode);
-      const earned = CLUB ? roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) : [];
+      const earned = COINS ? roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) : [];
       if (earned.length) SoraCoins.earn(earned);
       const coins = earned.reduce((s2, e) => s2 + e.n, 0);
       reviewQueue = reviewQueue.filter((x) => x !== id && C.due(prog, [x]).length);      // what's still due
       const nextReview = l && reviewQueue.length ? allLists(b).find((x) => x.id === reviewQueue[0]) : null;
       for (const x of log) { const cid = cardId(b, x.item); if (cid) C.noteCard(prog, cid, x.ok); }
       commit();
+      noteBook(b);
+      const won = COINS ? SC.checkAchievements() : [];
+      if (won.length) setTimeout(() => SC.celebrate(won), 900);
+      // what this task still has in it now (shown on the result: the three stars still to get, say)
+      const potAfter = !COINS ? null : mix ? null : l ? SC.stagePot(l, prog.lists[l.id], potOpts()) : SC.bossPot(b, c, prog, potOpts());
       const after = C.rank(prog.xp).name, outOfHearts = right.length < qs.length;
       view(head(`${Math.round(score * 100)} %${outOfHearts ? tr(" (out of hearts)") : ""}`,
         mix ? tr(missed.length ? "The missed cards will come up more often in the next mixed quiz." : "A clean sweep across chapters.")
@@ -1015,9 +1071,7 @@ window.StudyCore = StudyCore;
           : tr("Passed by picking, which keeps it fresh: next review {when}. Play in Recall mode to move it to a longer gap.", { when: when(rec.due) })),
         el("div", { class: "sq-result" }, starRow(s), el("span", {}, tr("+{n} {points} · best combo {best}", { n: num(gained), points: tr.n(gained, "points", "points"), best })),
           after !== before ? el("b", { class: "sq-up" }, tr("New rank: {rank}!", { rank: tr(after) })) : ""),
-        CLUB ? el("p", { class: "sq-coined" }, el("b", {}, tr("🪙 +{n} coins", { n: coins })), " ",
-          el("small", { class: "hint" }, SoraCoins.balance().inClub ? earned.map((e) => e.why).slice(1).join(" · ")
-            : tr("They wait on this phone until you start or join your club, on the duel page."))) : "",
+        COINS ? coinResult(coins, pot0, potAfter, earned) : "",
         nextReview ? el("div", { class: "row" }, btn(tr("Next review ▶ ({n} left)", { n: reviewQueue.length }), () => quiz(b, nextReview.chapter, nextReview), true)) : "",
         log.length ? el("section", { class: "card" }, el("h3", {}, tr(missed.length ? "Look at these once more" : "Your answers")),
           FRIENDS ? "" : el("p", { class: "hint" }, "Unsure about any of them? “Ask about this” opens Telegram with the card written out; add your question and send it."),
@@ -1028,6 +1082,17 @@ window.StudyCore = StudyCore;
         mix ? el("div", { class: "row" }, btn(tr("Another mixed quiz"), () => mixBoss(b), true), btn(tr("Chapters"), home, false, "link"))
           : onePart(b) ? el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(tr("Stages"), home, score >= C.PASS))
           : el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(partName(b, c), () => chapter(b, c), score >= C.PASS), btn(partsName(b), home, false, "link")));
+    }
+    // the coins on the result: big, against what the round could give; full, with a burst, or what's still there to win
+    function coinResult(coins, pot, after, earned) {
+      const max = Math.max(pot?.total || 0, coins), full = coins >= max && coins > 0;
+      const left = (after?.extras || []).filter(([k]) => k !== "ontime");
+      return el("section", { class: `sq-coinres ${full ? "full" : ""}`.trim() },
+        el("div", { class: "sq-coinline" }, el("span", { class: "coin-pot huge", "aria-label": tr("🪙 +{n} coins", { n: num(coins) }) }, `🪙 +${num(coins)}`),
+          el("b", {}, full ? tr("Full: all {n} collected!", { n: num(max) }) : tr("of {n} possible", { n: num(max) }))),
+        earned.length > 1 ? el("p", { class: "hint" }, earned.slice(1).map((e) => `${e.why} +${e.n}`).join(" · ")) : "",
+        left.length ? el("p", { class: "sq-left" }, tr("Still to win here:"), " ", ...left.map(([k]) => el("span", { class: "coin-tag" }, tr(TAGS[k])))) : "",
+        full ? el("span", { class: "sq-burst", "aria-hidden": "true" }, ...Array.from({ length: 10 }, (_, k) => el("i", { style: `--a:${k * 36}deg;--d:${(k % 3) * 80}ms` }, "🪙"))) : "");
     }
     const one = !mix && onePart(b), sec = !mix && bySection(b);
     view(head(mix ? tr("Mixed quiz") : l ? l.name : one ? tr("Boss round") : sec ? tr("Boss round: {title}", { title: c.title }) : tr("Boss round: chapter {n}", { n: c.n }),

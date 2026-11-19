@@ -37,12 +37,14 @@
 <meta name="theme-color" content="#07090d">
 <link rel="stylesheet" href="/static/app.css">
 </head>
-<body>
+
+<body data-coins-float>
 <div class="app">
 <aside class="side">
   <a class="brand" href="/"><span class="brand-mark">S</span>Sora</a>
   <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
   <a class="nav-item" href="/" aria-current="page" data-t>Home</a>
+  <a class="nav-item nav-account" href="/account/" ><span aria-hidden="true">🪙</span> <span data-t>My account</span></a>
   
   <div class="nav-label" data-t>Quran</div>
   
@@ -70,16 +72,29 @@
   
   
   
+<style>
+  /* coins on Home (19.11.2026): the balance and what's still to win, then each subject's on its card */
+  .home-coins { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-6); margin: 0 0 var(--space-6); padding: var(--space-4) var(--space-6);
+    background: linear-gradient(135deg, color-mix(in srgb, #ffc83d 14%, var(--bg-200)), var(--bg-200)); border: 2px solid color-mix(in srgb, #ffc83d 45%, var(--line));
+    border-radius: 18px; color: inherit; text-decoration: none; }
+  .home-coins:hover { border-color: #ffc83d; }
+  .home-coins > span { display: grid; gap: 2px; }
+  .home-coins small { color: var(--ink-muted); font-size: 13px; }
+  .home-coins .go { margin-left: auto; font-weight: 800; text-transform: uppercase; color: var(--volt-text, var(--volt)); }
+  .home-pot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--space-2) 0; }
+</style>
 <div class="page-title">
   <div class="ov-label">Sora</div>
   <h1 data-t>Games</h1>
   <p data-t>Pick a game.</p>
 </div>
+<div id="homeCoins"></div>
 
 <h2 class="topic-head" data-t>Quran</h2>
 <div class="tools">
   
-  <a class="tool-card compact" href="/study-quest/surahs/" title="The 114 surahs of the Quran and their numbers, both ways: cards, then quizzes against the clock, with reviews on a schedule.&#10;Input: Nothing to upload: the game runs in the browser">
+  
+  <a class="tool-card compact" href="/study-quest/surahs/" title="The 114 surahs of the Quran and their numbers, both ways: cards, then quizzes against the clock, with reviews on a schedule.&#10;Input: Nothing to upload: the game runs in the browser" data-book="surahs">
     <h3 data-t>Surah Numbers</h3><span class="open">→</span>
   </a>
   
@@ -88,9 +103,11 @@
 <h2 class="topic-head" data-t>Games</h2>
 <div class="tools">
   
+  
   <a class="tool-card compact" href="/2048/" title="A short break: slide the tiles, merge equal numbers and reach 2048. Arrow keys or WASD on a computer, swipe on a touch screen.&#10;Input: Nothing to upload: the game runs in the browser">
     <h3 data-t>2048 (game)</h3><span class="open">→</span>
   </a>
+  
   
   <a class="tool-card compact" href="/walks/" title="A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.&#10;Input: Nothing to upload: the walks run in the browser">
     <h3 data-t>Walks</h3><span class="open">→</span>
@@ -106,6 +123,32 @@
 </div>
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
+
+<script>window.SORA_ACCOUNT_PAGE = "/account/"; window.SORA_BOOK_NAMES = {"surahs": "Surah Numbers"};</script>
+<script src="/static/coins.js"></script>
+
+
+<script src="/static/study/surahs.js"></script>
+<script>
+(() => {
+  const SC = window.SoraCoins, o = SC.playing(), books = window.StudyBooks || [], fmt = SC.fmt;
+  let toWin = 0, today = 0;
+  for (const card of document.querySelectorAll(".tool-card[data-book]")) {
+    const id = card.dataset.book, b = books.find((x) => x.id === id), sum = b ? SC.bookSummary(b, SC.progressOf(b), o) : SC.studies()[id];
+    if (!sum) continue;
+    if (b) SC.noteBook(id, sum);
+    toWin += sum.total; today += sum.today;
+    card.querySelector(".open").before(el("span", { class: "home-pot" }, el("span", { class: "coin-pot" }, `🪙 ${fmt(sum.total)}`),
+      sum.today ? el("span", { class: "coin-tag hot" }, tr("today 🪙 {n}", { n: fmt(sum.today) })) : ""));
+  }
+  const s = SC.state(), t = SC.tierOf(s.earned);
+  document.getElementById("homeCoins").replaceChildren(el("a", { class: "home-coins", href: window.SORA_ACCOUNT_PAGE },
+    el("span", { class: "coin-pot big" }, `🪙 ${fmt(s.balance)}`),
+    el("span", {}, el("b", {}, tr("Your coins")), el("small", {}, `${t.icon} ${tr(t.name)}`)),
+    toWin ? el("span", {}, el("b", {}, tr("🪙 {n} still to win", { n: fmt(toWin) })), el("small", {}, today ? tr("today 🪙 {n}", { n: fmt(today) }) : tr("in your subjects"))) : "",
+    el("span", { class: "go" }, tr("My account ▶"))));
+})();
+</script>
 
 </body>
 </html>

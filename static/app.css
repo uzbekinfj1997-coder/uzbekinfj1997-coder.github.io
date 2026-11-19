@@ -310,3 +310,52 @@ button.tool-card:hover { background: var(--bg-300); }
 .set-range { display: flex; align-items: center; gap: var(--space-2); }
 .set-range input { width: 160px; accent-color: var(--volt); }
 .set-value { min-width: 48px; text-align: right; font-family: var(--font-mono); font-size: 13px; }
+
+/* ---------- coins (static/coins.js, 19.11.2026): the balance in the corner of every page, what a task can still give, medals ---------- */
+.coin-pill { position: absolute; top: 10px; right: 12px; z-index: 900; display: inline-flex; align-items: center; gap: 6px; padding: 5px 16px 5px 8px;
+  border-radius: 999px; background: linear-gradient(135deg, #2e2000, #5c4000); border: 2px solid #ffc83d; color: #ffe08a; text-decoration: none;
+  font-family: var(--font-mono); font-size: 22px; font-weight: 700; line-height: 1.2; box-shadow: 0 4px 18px rgba(0, 0, 0, .45), 0 0 0 3px rgba(255, 200, 61, .14); }
+.coin-pill:hover { color: #fff3c4; }
+body[data-coins-float] .coin-pill { position: fixed; z-index: 1200; }      /* elsewhere a game's full screen (z-index 1000) covers it */
+.coin-pill .coin-ico { font-size: 24px; filter: drop-shadow(0 0 5px rgba(255, 200, 61, .75)); }
+.coin-pill.bump { animation: coin-bump .5s ease; }
+.coin-plus { position: absolute; right: 10px; top: 100%; margin-top: 4px; font-size: 20px; font-weight: 800; color: #ffc83d; pointer-events: none;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, .7); animation: coin-rise 1.6s ease forwards; }
+.coin-plus.minus { color: var(--danger); }
+[data-theme="light"] .coin-pill { background: linear-gradient(135deg, #fff6d6, #ffe08a); color: #5c4000; border-color: #d99a00; }
+@media (max-width: 760px) { .coin-pill { top: 8px; right: 8px; font-size: 19px; padding: 4px 13px 4px 6px; } .coin-pill .coin-ico { font-size: 21px; } }
+/* a pot: what a task can still give, in gold, with a shine passing over it */
+.coin-pot { position: relative; display: inline-flex; align-items: center; gap: 4px; padding: 3px 12px; border-radius: 999px; overflow: hidden;
+  background: linear-gradient(135deg, #ffd84d, #ffb300 60%, #ffe385); color: #301f00; font-family: var(--font-mono); font-weight: 800; font-size: 20px;
+  line-height: 1.25; white-space: nowrap; box-shadow: 0 2px 12px rgba(255, 179, 0, .35); text-transform: none; letter-spacing: 0; }
+.coin-pot::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .6) 45%, transparent 60%);
+  transform: translateX(-100%); animation: coin-shine 3.4s ease-in-out infinite; }
+.coin-pot small { font-family: var(--font-sans); font-size: .62em; font-weight: 700; opacity: .85; }
+.coin-pot.big { font-size: 30px; padding: 5px 18px; }
+.coin-pot.huge { font-size: clamp(30px, 8vw, 46px); padding: 6px 22px; }
+.coin-pot { max-width: 100%; }
+.coin-pot.calm { background: var(--bg-100); color: #d99a00; border: 1px solid rgba(255, 200, 61, .45); box-shadow: none; font-size: 15px; }
+.coin-pot.calm::after { display: none; }
+.coin-pot.locked { filter: saturate(.55) brightness(.85); }
+.coin-tags { display: flex; flex-wrap: wrap; gap: 4px; max-width: 100%; }
+.coin-tag { font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 999px; white-space: nowrap; text-transform: none; letter-spacing: 0;
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  background: rgba(255, 200, 61, .14); color: #e6a800; border: 1px solid rgba(255, 200, 61, .45); }
+.coin-tag.hot { background: #ff5a36; border-color: #ff5a36; color: #fff; animation: coin-pulse 1.6s ease-in-out infinite; }
+/* a medal or a cup just won: shown big for a moment */
+.coin-ach { position: fixed; left: 50%; top: 64px; transform: translateX(-50%); z-index: 1300; display: grid; gap: 8px; width: min(440px, calc(100vw - 24px));
+  animation: coin-in .45s cubic-bezier(.2, 1.4, .4, 1); transition: opacity .6s; }
+.coin-ach.out { opacity: 0; }
+.coin-ach-row { display: flex; align-items: center; gap: 14px; padding: 12px 18px; border-radius: 16px; background: linear-gradient(135deg, #2b1d00, #523900);
+  border: 2px solid #ffc83d; color: #ffeab0; box-shadow: 0 12px 34px rgba(0, 0, 0, .55); }
+.coin-ach-ico { font-size: 44px; line-height: 1; }
+.coin-ach-row small { display: block; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; color: #ffc83d; }
+.coin-ach-row b { font-size: 17px; line-height: 1.3; }
+.coin-ach-row em { margin-left: auto; font-style: normal; font-family: var(--font-mono); font-size: 22px; font-weight: 800; color: #ffd84d; white-space: nowrap; }
+.nav-account { color: #e6a800; font-weight: 700; }
+@keyframes coin-bump { 35% { transform: scale(1.18); } }
+@keyframes coin-rise { from { opacity: 0; transform: translateY(8px); } 15% { opacity: 1; } to { opacity: 0; transform: translateY(26px); } }
+@keyframes coin-shine { 0%, 55% { transform: translateX(-100%); } 85%, 100% { transform: translateX(100%); } }
+@keyframes coin-pulse { 50% { box-shadow: 0 0 0 5px rgba(255, 90, 54, .25); } }
+@keyframes coin-in { from { opacity: 0; transform: translate(-50%, -16px) scale(.92); } }
+@media (prefers-reduced-motion: reduce) { .coin-pot::after, .coin-tag.hot, .coin-pill.bump, .coin-plus, .coin-ach { animation: none; } }

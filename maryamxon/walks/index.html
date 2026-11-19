@@ -37,12 +37,14 @@
 <meta name="theme-color" content="#07090d">
 <link rel="stylesheet" href="/static/app.css">
 </head>
+
 <body>
 <div class="app">
 <aside class="side">
   <a class="brand" href="/maryamxon/"><span class="brand-mark">M</span>Maryamxon</a>
   <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
   <a class="nav-item" href="/maryamxon/"  data-t>Home</a>
+  <a class="nav-item nav-account" href="/maryamxon/account/" ><span aria-hidden="true">🪙</span> <span data-t>My account</span></a>
   
   <div class="nav-label" data-t>Study</div>
   
@@ -110,7 +112,8 @@
 </div>
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
-<script>window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/maryamxon/study-duel/";</script>
+
+<script>window.SORA_ACCOUNT_PAGE = "/maryamxon/account/"; window.SORA_BOOK_NAMES = {"algebra": "Algebra", "chemistry": "Chemistry", "geography": "Geography", "geometry": "Geometry", "physics": "Physics"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/maryamxon/study-duel/";</script>
 <script src="/static/coins.js"></script>
 
 <script>

@@ -37,12 +37,14 @@
 <meta name="theme-color" content="#07090d">
 <link rel="stylesheet" href="/static/app.css">
 </head>
+
 <body>
 <div class="app">
 <aside class="side">
   <a class="brand" href="/aziza/"><span class="brand-mark">A</span>Aziza</a>
   <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
   <a class="nav-item" href="/aziza/"  data-t>Home</a>
+  <a class="nav-item nav-account" href="/aziza/account/" ><span aria-hidden="true">🪙</span> <span data-t>My account</span></a>
   
   <div class="nav-label" data-t>Quran</div>
   
@@ -102,7 +104,8 @@
 </div>
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
-<script>window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/aziza/surah-duel/";</script>
+
+<script>window.SORA_ACCOUNT_PAGE = "/aziza/account/"; window.SORA_BOOK_NAMES = {"surahs": "Surah Numbers"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/aziza/surah-duel/";</script>
 <script src="/static/coins.js"></script>
 
 <script>

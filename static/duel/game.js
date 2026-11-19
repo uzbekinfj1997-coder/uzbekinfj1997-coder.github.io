@@ -360,9 +360,11 @@
   }
   function take(st) {
     if (!st || st.same || !st.members) return false;
-    room = { v: st.v, members: st.members, duels: st.duels, coins: st.coins || [], totals: st.totals || {}, spent: st.spent || [],
-      rewards: st.rewards || [], asks: st.asks || [], wins: st.wins || null, app: st.app || "" };
+    // everything the room says (the duels, and the coins: totals, weeks, achievements…), the coins for static/coins.js too
+    const { ok: _ok, me: _me, same: _same, now: _now, ...rest } = st;
+    room = { coins: [], totals: {}, spent: [], rewards: [], asks: [], wins: null, app: "", ...rest };
     keep(ROOM_KEY, room);
+    if (COINS) { COINS.changed(); const won = COINS.checkAchievements(); if (won.length) COINS.celebrate(won); }      // a duel medal, a week's cup
     return true;
   }
   function live(ok, why = "") {
@@ -631,7 +633,7 @@
             : T("You play first. When you've finished, {name} gets the challenge with your score to beat, whenever they next open the app. Pick what it's on:", { name: p.name })),
           lastSetup() ? el("div", { class: "row" }, btn(T("Same again: {what}", { what: `${lastSetup().deckName} · ${setupLine(lastSetup().cfg)}` }), () => challenge(lastSetup().deck, "custom", lastSetup().cfg), true)) : "",
           el("div", { class: "row" }, btn(T("Set up a duel…"), () => setup(), true, "sd-setup-btn")),
-          el("p", { class: "hint" }, T("Or a quick one: {setup}", { setup: setupLine(DEFAULT) })),
+          el("p", { class: "hint" }, T("Or a quick one: {setup}", { setup: setupLine(DEFAULT) })), duelPotEl(DEFAULT),
           ...Object.values(DECKS).map((deck) => el("div", { class: "sd-ranges" }, Object.keys(DECKS).length > 1 ? el("small", { class: "sd-deck" }, deck.name) : "",
             ...deck.ranges.map(([k, label]) => btn(label, () => challenge(deck.id, k), false))))),
         waiting.length ? box("sd-wait", club ? T("Waiting for the others") : T("Waiting for {name}", { name: p.name }), T("{n} sent", { n: n(waiting.length, "duel", "duels") }),
@@ -702,6 +704,7 @@
         row(T("Time per question"), choice([[0, T("No clock")], [10, T("{n} s", { n: 10 })], [15, T("{n} s", { n: 15 })], [30, T("{n} s", { n: 30 })]], cfg.time, (v) => { cfg.time = v; draw(); }),
           cfg.mode === "typing" && cfg.time ? T("Typing gets twice the time.") : ""),
         row(T("Double or nothing"), choice([[1, T("On")], [0, T("Off")]], cfg.bet, (v) => { cfg.bet = v; draw(); })),
+        row(T("Coins"), duelPotEl(cfg)),
         row(T("Revenge questions"), choice([[1, T("On")], [0, T("Off")]], cfg.revenge, (v) => { cfg.revenge = v; draw(); }), T("Up to two you or your partner missed lately, worth double")),
         el("div", { class: "row" }, btn(T("Play ▶"), () => {
           const c = { ...cfg, parts: cfg.parts?.length ? cfg.parts : ["all"] };
@@ -837,7 +840,10 @@
       el("div", { class: "row" }, btn(T("Wallet"), wallet, false, "small"), btn(T("Rewards"), rewards, false, "small"), btn(T("Hall of Fame"), fame, true, "small")));
   }
   // the server's reasons are in English: put into the app's language here (Study Quest's come in it already)
-  const whyText = (w) => { const m = /^Duel: (\d+) of (\d+) right$/.exec(w); return m ? T("Duel: {right} of {all} right", { right: m[1], all: m[2] }) : w === "Duel won" || w === "Duel drawn" ? T(w) : w; };
+  // a duel's coins before it's played: its answers by the setup, 5 for a perfect one, and 10 more for winning it
+  const duelPotEl = (cfg) => (!COINS ? "" : el("div", { class: "sd-pot" }, el("span", { class: "coin-pot" }, T("🪙 up to {n}", { n: num(COINS.duelPot({ ...DEFAULT, ...cfg })) })),
+    el("span", { class: "coin-tag" }, T("+10 for a win"))));
+  const whyText = (w) => { if (/^ach:/.test(w)) return COINS.achName(w.slice(4)); const m = /^Duel: (\d+) of (\d+) right$/.exec(w); return m ? T("Duel: {right} of {all} right", { right: m[1], all: m[2] }) : w === "Duel won" || w === "Duel drawn" ? T(w) : w; };
   function wallet() {
     screen = "wallet";
     const c = COINS.balance(), t = COINS.tierOf(c.earned);
@@ -878,7 +884,10 @@
     screen = "fame";
     const since = mondayOf(), mine = COINS.balance();
     const earnedOf = (m) => (m.id === me.id ? mine.earned : room.totals?.[m.id]?.earned || 0);
-    const weekOf = (m) => (room.coins || []).filter((e) => e.m === m.id && e.at >= since).reduce((s, e) => s + e.n, 0) + (m.id === me.id ? mine.waiting : 0);
+    // this week's coins: the server's count by week (Tashkent's, as the weekly cup goes by), or, from a room before it, the latest coins
+    const wk = room.weeks?.[COINS.weekKey(Date.now())];
+    const weekOf = (m) => (room.weeks ? wk?.[m.id] || 0 : (room.coins || []).filter((e) => e.m === m.id && e.at >= since).reduce((s, e) => s + e.n, 0))
+      + (m.id === me.id ? mine.waiting : 0);
     // duels won: the server's count (a room lets its oldest duels go), or, from a phone that hasn't read it yet, the duels it has
     const winsOf = (m) => room.wins ? room.wins[m.id] || 0 : room.duels.filter((d) => isDone(d) && (d.by === m.id || otherSide(d) === m.id))
       .filter((d) => d.results[m.id].points > d.results[d.by === m.id ? otherSide(d) : d.by].points).length;

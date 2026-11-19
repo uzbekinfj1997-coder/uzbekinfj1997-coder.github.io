@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My account · Maryamxon</title>
+<script>
+/* Several apps share this web address: each keeps what it saves (scores, players, theme) apart, under its own name. What was saved
+   before they were kept apart is copied into each app once. SoraApp.keys() lists this app's own keys, for the backup file. */
+(() => {
+  const ns = "maryamxon:", store = localStorage, p = Storage.prototype, get = p.getItem, set = p.setItem, remove = p.removeItem;
+  const raw = () => Array.from({ length: store.length }, (_, i) => store.key(i));
+  if (get.call(store, ns + "since") === null) {
+    for (const k of raw()) if (!/^[a-z0-9-]+:/.test(k)) { try { set.call(store, ns + k, get.call(store, k)); } catch { /* full */ } }
+    try { set.call(store, ns + "since", String(Date.now())); } catch { /* full */ }
+  }
+  p.getItem = function (k) { return get.call(this, this === store ? ns + k : k); };
+  p.setItem = function (k, v) { return set.call(this, this === store ? ns + k : k, v); };
+  p.removeItem = function (k) { return remove.call(this, this === store ? ns + k : k); };
+  window.SoraApp = { id: "maryamxon", keys: () => raw().filter((k) => k.startsWith(ns) && k !== ns + "since").map((k) => k.slice(ns.length)) };
+})();
+</script>
+
+
+<script src="/static/lang.js"></script>
+<script src="/static/players.js"></script>
+<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+
+<meta name="robots" content="noindex, nofollow">
+<script>window.SORA_EDITION = "maryamxon"; window.SORA_STATIC = true;</script>
+<link rel="icon" href="/maryamxon/icon-192.png">
+<link rel="manifest" href="/maryamxon/app.webmanifest">
+<link rel="apple-touch-icon" href="/maryamxon/icon-192.png">
+<meta name="theme-color" content="#07090d">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+
+<body data-coins-float>
+<div class="app">
+<aside class="side">
+  <a class="brand" href="/maryamxon/"><span class="brand-mark">M</span>Maryamxon</a>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
+  <a class="nav-item" href="/maryamxon/"  data-t>Home</a>
+  <a class="nav-item nav-account" href="/maryamxon/account/" aria-current="page"><span aria-hidden="true">🪙</span> <span data-t>My account</span></a>
+  
+  <div class="nav-label" data-t>Study</div>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/algebra/"  data-t>Algebra</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/geometry/"  data-t>Geometry</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/physics/"  data-t>Physics</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/chemistry/"  data-t>Chemistry</a>
+  
+  <a class="nav-item" href="/maryamxon/study-quest/geography/"  data-t>Geography</a>
+  
+  <a class="nav-item" href="/maryamxon/study-duel/"  data-t>Study Duel</a>
+  
+  
+  <div class="nav-label" data-t>Games</div>
+  
+  <a class="nav-item" href="/maryamxon/2048/"  data-t>2048 (game)</a>
+  
+  <a class="nav-item" href="/maryamxon/walks/"  data-t>Walks</a>
+  
+  
+  <div class="side-foot">
+    <span class="local" data-t>Your progress stays in this browser</span>
+    
+    <button class="small" id="settingsBtn" type="button" title="Theme, language, backup file" data-t data-t-title>Settings</button>
+  </div>
+</aside>
+<main>
+  <div class="update-panel hidden" id="updatePanel">
+    <div id="updateBody"></div>
+    <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
+  </div>
+  
+  
+  <div class="page-title"><div class="ov-label">Maryamxon</div><h1 data-t>My account</h1><p data-t>Your coins, results and achievements: the balance, what&#39;s still to win in each subject, medals and cups.</p></div>
+  
+  
+<style>
+  /* My account (static/account/app.js): the coins big, the subjects to go back to, the results, the medals and cups */
+  .ac { display: grid; gap: var(--space-4); }
+  .ac-topbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-3); }
+  #acStatus { font-size: 13px; color: var(--ink-muted); }
+  #acMain { display: grid; gap: var(--space-6); }
+  .ac-hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-4); padding: var(--space-6);
+    background: linear-gradient(135deg, color-mix(in srgb, #ffc83d 14%, var(--bg-200)), var(--bg-200)); border: 2px solid color-mix(in srgb, #ffc83d 45%, var(--line)); border-radius: 18px; }
+  .ac-hero > div { display: grid; gap: 6px; align-content: start; justify-items: start; }
+  .ac-hero small { color: var(--ink-muted); font-size: 13px; }
+  .ac-tier b { font-family: var(--font-display); font-size: 26px; text-transform: uppercase; }
+  .ac-link { color: #e6a800; font-weight: 700; text-decoration: none; }
+  .ac-bar-in { display: block; width: 100%; height: 8px; background: var(--bg-100); border-radius: 4px; overflow: hidden; }
+  .ac-bar-in i { display: block; height: 100%; background: linear-gradient(90deg, #ffb300, #ffd84d); }
+  .ac-sec h2 { margin: 0 0 var(--space-3); font-family: var(--font-display); font-size: 20px; text-transform: uppercase; letter-spacing: .04em; }
+  .ac-sec h3 { margin: var(--space-4) 0 var(--space-2); font-family: var(--font-display); text-transform: uppercase; }
+  .ac-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--space-3); }
+  .ac-subject { display: grid; gap: 8px; justify-items: start; padding: var(--space-4); background: var(--bg-200); border: 1px solid var(--line); border-top: 3px solid #ffc83d;
+    color: inherit; text-decoration: none; }
+  .ac-subject:hover { background: var(--bg-300); }
+  .ac-subject b { font-family: var(--font-display); font-size: 18px; text-transform: uppercase; }
+  .ac-subject small { color: var(--ink-muted); }
+  .ac-go { font-weight: 800; color: var(--volt-text, var(--volt)); text-transform: uppercase; font-size: 13px; }
+  .ac-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-3); }
+  .ac-tile { display: grid; gap: 2px; padding: var(--space-3) var(--space-4); background: var(--bg-200); border-left: 3px solid var(--line); }
+  .ac-tile b { font-family: var(--font-mono); font-size: 26px; }
+  .ac-tile span { font-size: 13px; }
+  .ac-tile small { color: var(--ink-muted); font-size: 12px; }
+  .ac-latest summary { cursor: pointer; color: var(--ink-muted); margin-top: var(--space-3); }
+  .ac-latest ul { margin: var(--space-2) 0 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .ac-latest li { display: flex; justify-content: space-between; gap: var(--space-3); padding: 4px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .ac-latest li b { font-family: var(--font-mono); color: #3fbf73; }
+  .ac-medals { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: var(--space-3); }
+  .ac-medal, .ac-cup { display: grid; gap: 6px; justify-items: start; padding: var(--space-4); background: var(--bg-200); border: 1px solid var(--line); border-radius: 14px; }
+  .ac-medal.lv0, .ac-cup:not(.won) { opacity: .78; }
+  .ac-medal.lv0 .ac-medal-ico, .ac-cup:not(.won) .ac-medal-ico { filter: grayscale(1); }
+  .ac-medal.lv1 { border-color: #c47a3a; } .ac-medal.lv2 { border-color: #b8c2cc; } .ac-medal.lv3 { border-color: #ffc83d; box-shadow: 0 0 0 3px rgba(255, 200, 61, .15); }
+  .ac-cup.won { border-color: #ffc83d; background: linear-gradient(135deg, color-mix(in srgb, #ffc83d 14%, var(--bg-200)), var(--bg-200)); }
+  .ac-medal-ico { font-size: 40px; line-height: 1; }
+  .ac-medal b, .ac-cup b { font-family: var(--font-display); font-size: 16px; text-transform: uppercase; }
+  .ac-medal small, .ac-cup small { color: var(--ink-muted); }
+  .ac-levels { display: flex; gap: 8px; }
+  .ac-level { display: grid; justify-items: center; font-size: 22px; filter: grayscale(1); opacity: .45; }
+  .ac-level.on { filter: none; opacity: 1; }
+  .ac-level small { font-size: 11px; font-family: var(--font-mono); }
+  .ac-next { display: grid; gap: 4px; width: 100%; }
+  .ac-done { color: #e6a800 !important; font-weight: 700; }
+  .ac-form { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+  .ac-form input { flex: 1 1 260px; min-height: 40px; font-family: var(--font-mono); }
+  .ac-code { display: block; margin-top: var(--space-2); padding: var(--space-2) var(--space-3); background: var(--bg-100); font-family: var(--font-mono); word-break: break-all; }
+</style>
+
+<div class="ac" id="ac">
+  <div class="ac-topbar">
+    <span id="acStatus"></span>
+    <div class="row">
+      <button class="small" type="button" data-settings data-t>Settings</button>
+      <button class="small" type="button" data-fullscreen data-t>Full screen</button>
+    </div>
+  </div>
+  <div id="acMain"></div>
+</div>
+
+</main>
+</div>
+<script src="/static/common.js"></script>
+<script src="/static/backup.js"></script>
+
+<script>window.SORA_ACCOUNT_PAGE = "/maryamxon/account/"; window.SORA_BOOK_NAMES = {"algebra": "Algebra", "chemistry": "Chemistry", "geography": "Geography", "geometry": "Geometry", "physics": "Physics"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/maryamxon/study-duel/";</script>
+<script src="/static/coins.js"></script>
+
+<script>window.SORA_ACCOUNT_BOOKS = [{"id": "algebra", "key": "sora.studyQuest.algebra.v1", "name": "Algebra", "url": "/study-quest/algebra/"}, {"id": "geometry", "key": "sora.studyQuest.geometry.v1", "name": "Geometry", "url": "/study-quest/geometry/"}, {"id": "physics", "key": "sora.studyQuest.physics.v1", "name": "Physics", "url": "/study-quest/physics/"}, {"id": "chemistry", "key": "sora.studyQuest.chemistry.v1", "name": "Chemistry", "url": "/study-quest/chemistry/"}, {"id": "geography", "key": "sora.studyQuest.geography.v1", "name": "Geography", "url": "/study-quest/geography/"}]; window.SORA_ROOT = "/maryamxon";</script>
+<script src="/static/study/algebra.js"></script>
+<script src="/static/study/geometry.js"></script>
+<script src="/static/study/physics.js"></script>
+<script src="/static/study/chemistry.js"></script>
+<script src="/static/study/geography.js"></script>
+<script src="/static/study/books-lang.js"></script>
+<script src="/static/account/app.js"></script>
+
+</body>
+</html>

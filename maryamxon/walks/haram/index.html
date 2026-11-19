@@ -30,13 +30,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 
 <meta name="robots" content="noindex, nofollow">
-<script>window.SORA_EDITION = "maryamxon"; window.SORA_STATIC = true;</script>
+<script>window.SORA_EDITION = "maryamxon"; window.SORA_STATIC = true; window.SORA_HOME = "/maryamxon/";</script>
 <link rel="icon" href="/maryamxon/icon-192.png">
 <link rel="manifest" href="/maryamxon/app.webmanifest">
 <link rel="apple-touch-icon" href="/maryamxon/icon-192.png">
 <meta name="theme-color" content="#07090d">
 <link rel="stylesheet" href="/static/app.css">
 </head>
+
 
 <body>
 <div class="app">
@@ -96,13 +97,13 @@
   .walk.is-fullscreen .walk-field { flex: 1; height: auto; }
   .walk-field canvas#walkCanvas { display: block; width: 100%; height: 100%; touch-action: none; }
   .walk-hud { position: absolute; inset: 0; pointer-events: none; color: #fff; text-shadow: 0 1px 3px #000; }
-  .walk-street { position: absolute; left: 14px; top: 12px; font: 700 20px var(--font-display); text-transform: uppercase; letter-spacing: .04em; }
-  .walk-next { position: absolute; left: 14px; top: 40px; font: 500 14px var(--font-sans); color: #e9edf2; }
+  .walk-street { position: absolute; left: 62px; top: 12px; font: 700 20px var(--font-display); text-transform: uppercase; letter-spacing: .04em; }
+  .walk-next { position: absolute; left: 62px; top: 40px; font: 500 14px var(--font-sans); color: #e9edf2; }
   .walk-progress { position: absolute; left: 14px; right: 14px; bottom: 10px; height: 4px; background: rgba(255,255,255,.2); }
   .walk-progress i { display: block; height: 100%; background: var(--volt); }
   .walk-toast { position: absolute; left: 50%; top: 22%; transform: translateX(-50%); padding: 8px 18px; background: rgba(0,0,0,.45); font: 700 24px var(--font-display); text-align: center; text-transform: uppercase; opacity: 0; transition: opacity .3s; }
   .walk-hint { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); font-size: 12px; color: #d6dde6; white-space: nowrap; }
-  .walk-photohint { position: absolute; left: 14px; top: 62px; font: 600 13px var(--font-sans); color: #8fe3ff; }
+  .walk-photohint { position: absolute; left: 62px; top: 62px; font: 600 13px var(--font-sans); color: #8fe3ff; }
   .walk-mapwin { position: absolute; z-index: 4; display: flex; flex-direction: column; background: #14181f; border: 1px solid rgba(255,255,255,.3); box-shadow: 0 2px 10px rgba(0,0,0,.45); }
   .walk-mapwin[hidden] { display: none; }
   .walk-maphead { display: flex; align-items: center; gap: 2px; padding: 2px 3px 2px 8px; cursor: move; touch-action: none; color: #fff; font: 600 12px var(--font-sans); background: rgba(0,0,0,.5); }
@@ -163,7 +164,7 @@
   
 </style>
 
-<div class="walk" id="walk" data-place="haram" data-static="/static/haram/" data-home="/maryamxon/walks/" data-others='[]'>
+<div class="walk" id="walk" data-place="haram" data-static="/static/haram/" data-home="/maryamxon/walks/" data-exit="/maryamxon/walks/" data-others='[]'>
   <div class="walk-bar">
     <span class="hint">South plaza → King Abdul Aziz Gate → the Mataf and the Kaaba → Safa → Marwa</span>
     <div class="row">

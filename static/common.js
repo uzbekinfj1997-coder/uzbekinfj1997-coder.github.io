@@ -258,3 +258,53 @@ function setupSettings(target, game, schema, hooks = {}) {
   document.addEventListener("keydown", (e) => { if (panel && e.key === "Escape") { e.stopImmediatePropagation(); close(); } }, true);
   return { values, open, close, set, isOpen: () => !!panel };
 }
+
+// ---------- going back (19.11.2026): one step back, the same from the ← button (every page but Home), a game's ✕ and the phone's back
+// gesture. Inside a page it goes to the screen before (the page says how: SoraNav.register); from a page's first screen, to where the
+// page belongs (the app's Home, or its own: a walk's list of walks). Leaving a round half-way asks first (the user, 19.11.2026).
+// The phone knows each screen inside a page: while a page is deeper than its first screen it keeps one history entry above its own,
+// so the back gesture takes one step instead of leaving the page. Pages call SoraNav.changed() whenever their screen changes. ----------
+const SoraNav = (() => {
+  let page = null, trapped = false, ignore = 0;
+  const depth = () => (page ? page.depth() : 0);
+  const goHome = () => { location.href = window.SORA_HOME || "/"; };
+  // the history entry above the page's own: there while the page is deeper than its first screen
+  function changed() {
+    if (depth() > 0 && !trapped) { history.pushState({ soraNav: 1 }, ""); trapped = true; }
+    else if (depth() === 0 && trapped) { trapped = false; ignore++; history.back(); }
+  }
+  // a game in full screen goes back to the page with its ✕
+  function leaveFullscreen() { document.querySelector(".is-fullscreen")?.querySelector("[data-fullscreen]")?.click(); }
+  function back({ full = false } = {}) {
+    const go = () => { if (full) leaveFullscreen(); if (depth() > 0) page.back(); else if (page?.exit) page.exit(); else goHome(); changed(); };
+    if (depth() > 0 && page.busy?.()) return ask(tr("Leave this round? It won't count."), go, changed);
+    go();
+  }
+  window.addEventListener("popstate", () => {
+    if (ignore) { ignore--; return; }
+    if (!trapped) return;                // not this page's step: the browser goes where it goes
+    trapped = false;                     // the phone's back took the step off
+    if (depth() > 0) back(); else changed();
+  });
+  // a question with two answers, over the page (or the game in full screen)
+  function ask(text, yes, no = () => {}) {
+    const box = el("div", { class: "nav-ask", role: "dialog", "aria-label": text },
+      el("div", { class: "nav-ask-card" }, el("p", {}, text),
+        el("div", { class: "row" }, el("button", { type: "button", class: "primary", onclick: () => { box.remove(); yes(); } }, tr("Leave")),
+          el("button", { type: "button", onclick: () => { box.remove(); no(); } }, tr("Stay")))));
+    (document.fullscreenElement || document.querySelector(".covers-page") || document.body).append(box);
+    box.querySelector("button:not(.primary)").focus();
+  }
+  // a game's ✕: inside its field, top left, in full screen too
+  const exitButton = (cls = "") => el("button", { type: "button", class: `nav-x ${cls}`.trim(), title: tr("Exit"), "aria-label": tr("Exit"), onclick: (e) => { e.stopPropagation(); back({ full: true }); } }, "✕");
+  function register(p) { page = p; changed(); }
+  // the ← button, top left (across from the coins), on every page but Home
+  function mount() {
+    if (!window.SORA_HOME || document.body.hasAttribute("data-home") || document.getElementById("soraBack")) return;
+    const b = el("button", { type: "button", id: "soraBack", class: "nav-back", title: tr("Back"), "aria-label": tr("Back"), onclick: () => back() }, el("b", { "aria-hidden": "true" }, "←"));
+    document.body.append(b);
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount); else mount();
+  return { register, changed, back, ask, exitButton, home: goHome };
+})();
+window.SoraNav = SoraNav;

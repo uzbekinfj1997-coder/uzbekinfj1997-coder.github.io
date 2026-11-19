@@ -315,7 +315,8 @@
       return b;
     }));
   }
-  const view = (...kids) => main.replaceChildren(...kids);
+  const view = (...kids) => { main.replaceChildren(...kids); window.SoraNav?.changed(); };
+  let stopPlay = null;          // the round being played: its clock, stopped when it's left
   const btn = (label, onclick, primary = false, cls = "") => el("button", { type: "button", class: `${primary ? "primary" : ""} ${cls}`.trim(), onclick }, label);
   const box = (cls, label, head, ...rest) => el("section", { class: `sd-box ${cls}` }, el("small", {}, label), head ? el("b", {}, head) : "", ...rest);
   const locale = window.SoraLang?.lang === "ru" ? "ru-RU" : "en-GB";
@@ -726,7 +727,9 @@
     const hud = el("div", { class: "sd-hud" }), clock = el("div", { class: "sd-clock" }, el("i")), body = el("div", { class: "sd-play" });
     const other = duel.by === me.id ? (duel.to ? memberOf(duel.to) : others().length === 1 ? others()[0] : CLUB() ? { name: T("anyone in the club") } : partner())
       : memberOf(duel.by), toBeat = duel.by !== me.id ? duel.results[duel.by]?.points : null;
-    view(el("div", { class: "sd-play" }, hud, clock, body, el("div", { class: "row" }, btn(T("Give up"), () => { clearInterval(timer); home(); }, false, "link"))));
+    stopPlay = () => clearInterval(timer);
+    view(el("div", { class: "sd-play" }, el("div", { class: "sd-hudrow" }, window.SoraNav ? SoraNav.exitButton("inline") : "", hud), clock, body,
+      el("div", { class: "row" }, btn(T("Give up"), () => { clearInterval(timer); home(); }, false, "link"))));
     function ask() {
       const q = duel.qs[i], order = deck.isOrder(q), typing = cfg.mode === "typing" && deck.typeable?.(q), began = performance.now();
       // the clock: the duel's time a question, more for putting in order (5:3, as 25 s to 15 s) and twice for typing; none if it's off
@@ -905,6 +908,10 @@
   }
 
   $("sdHome").onclick = home;
+  // one step back (common.js SoraNav: the ← button, a round's ✕, the phone's back gesture): to the duels' Home; a round half-way asks first
+  // (an invite's screens, joining or switching clubs, are the page's own first screens: a step back there would bring the invite link back)
+  window.SoraNav?.register({ depth: () => (["home", "welcome", "join", "switch"].includes(screen) ? 0 : 1), busy: () => screen === "play",
+    back: () => { stopPlay?.(); stopPlay = null; home(); } });
   setupFullscreen(root);
   window.SurahDuel = { home, state: () => ({ me, room, outbox, current }), poll, decks: DECKS };      // for tests
   liveEl.textContent = me ? T("Connecting…") : "";

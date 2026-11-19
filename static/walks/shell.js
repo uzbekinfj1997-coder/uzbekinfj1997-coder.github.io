@@ -671,6 +671,9 @@ void main() { float d = length(vP - uCam) / ${PICK_RANGE}.0; vec4 e = fract(d * 
     $("walkPhotoBtn").onclick = () => { const n = nearestPhoto(); showPhoto(n ? PH.indexOf(n.p) : 0); };
     $("walkPhotoBtn").hidden = !PH.length;
     setupFullscreen(root);
+    // going back (common.js SoraNav: the ✕ top left of the view, the ← button): to the walks, or for the flat, the app's Home
+    field.append(SoraNav.exitButton());
+    SoraNav.register({ depth: () => 0, exit: () => { location.href = root.dataset.exit || root.dataset.home; } });
     mapWin.hidden = !S.map;
     minimiseMapWin(mapState.min);
 

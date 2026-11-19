@@ -217,7 +217,9 @@ window.StudyCore = StudyCore;
   const date = (t) => { const d = new Date(t); return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`; };
   const when = (t) => { const days = Math.round((C.startOfDay(t) - C.startOfDay(Date.now())) / C.DAY); return days <= 0 ? tr("today") : days === 1 ? tr("tomorrow") : tr("in {n} {days} ({date})", { n: days, days: tr.n(days, "day", "days"), date: date(t) }); };
   const starRow = (n) => el("span", { class: "sq-stars", "aria-label": tr("{n} of 3 stars", { n }) }, ...[1, 2, 3].map((k) => el("i", { class: k <= n ? "on" : "" })));
-  function view(...children) { clearInterval(timer); timer = null; main.replaceChildren(...children); }
+  function view(...children) { clearInterval(timer); timer = null; main.replaceChildren(...children); window.SoraNav?.changed(); }
+  // where a screen sits, for going back one step (SoraNav: the ← button, a round's ✕, the phone's back gesture)
+  let here = {};
   const book = () => books.find((b) => b.id === bookId) || books[0];
   const allLists = (b) => b.chapters.flatMap((c) => c.lists.map((l) => ({ ...l, chapter: c })));
   const bossId = (b, c) => `${b.id}:boss:${c.n}`;
@@ -310,7 +312,7 @@ window.StudyCore = StudyCore;
       [btn("Open the list", () => written(b), true)]);
   }
   function written(b) {
-    screen = "written";
+    screen = "written"; here = { b };
     const st = wstore();
     const mk = el("section", { class: "card sq-marking" });
     const fillLink = () => markingLinked().then((on) => mk.replaceChildren(...(on
@@ -357,7 +359,7 @@ window.StudyCore = StudyCore;
       "Please mark this as an SBR examiner would (not official): marks for each requirement and the professional marks, what earned marks, what was missing, and how to improve."].join("\n");
   }
   function attempt(b, w) {
-    screen = "attempt";
+    screen = "attempt"; here = { b };
     const st = wstore(), d = st.drafts[w.id] || (st.drafts[w.id] = { text: "", used: 0 }), limit = minutes(w) * 60;
     const box = el("textarea", { class: "sq-answer", rows: 18, placeholder: "Your answer. Use headings for each requirement, apply the rules to the facts, and finish with a conclusion.", "aria-label": "Your answer" });
     box.value = d.text;
@@ -871,7 +873,7 @@ window.StudyCore = StudyCore;
   }
   function chapter(b, c) {
     if (onePart(b)) return home();      // its stages are on Home
-    screen = "chapter";
+    screen = "chapter"; here = { b, c };
     view(head(bySection(b) ? c.title : tr("Chapter {n}: {title}", { n: c.n, title: c.title }), `${c.pages ? tr("Book pages {pages}. ", { pages: c.pages }) : ""}${tr("Look at the cards, then play the stage. 80 % passes it and opens the next one.")}`),
       COINS ? partPotEl(b, c) : "",
       ...stageBoard(b, c),
@@ -909,7 +911,7 @@ window.StudyCore = StudyCore;
     return el("div", {}, ...ans, it.why ? whyEl(it.why, "why") : "", it.image ? el("p", { class: "img" }, tr("Picture: {image}", { image: it.image })) : "");
   }
   function cards(b, c, l) {
-    screen = "cards";
+    screen = "cards"; here = { b, c };
     let i = 0;
     const card = el("div");
     function show(flipped = false) {
@@ -929,7 +931,7 @@ window.StudyCore = StudyCore;
   // ---------- the quiz: a stage, or the chapter's boss round (l = null) ----------
   // mix = { items, pool }: the mixed boss across chapters (c and l are null); the chapter is shown only after answering
   function quiz(b, c, l, mix = null) {
-    screen = "quiz";
+    screen = "quiz"; here = { b, c, mix };
     const pool = mix ? mix.pool : c.lists.flatMap((x) => x.items), items = mix ? mix.items : l ? l.items : pool;
     const typed = S.answer === "recall";
     const qs = C.questions(items, pool, typed ? "key" : S.dir, Math.random, l || mix ? 0 : Math.min(15, pool.length));
@@ -1096,7 +1098,8 @@ window.StudyCore = StudyCore;
     }
     const one = !mix && onePart(b), sec = !mix && bySection(b);
     view(head(mix ? tr("Mixed quiz") : l ? l.name : one ? tr("Boss round") : sec ? tr("Boss round: {title}", { title: c.title }) : tr("Boss round: chapter {n}", { n: c.n }),
-      mix ? tr("Traps, comparisons and scenarios from the chapters you have passed. The chapter is shown after you answer.") : l ? "" : tr(one ? "Questions from every stage." : sec ? "Questions from every stage of the section." : "Questions from every stage of the chapter.")), bar, body,
+      mix ? tr("Traps, comparisons and scenarios from the chapters you have passed. The chapter is shown after you answer.") : l ? "" : tr(one ? "Questions from every stage." : sec ? "Questions from every stage of the section." : "Questions from every stage of the chapter.")),
+      el("div", { class: "sq-hudrow" }, window.SoraNav ? SoraNav.exitButton("inline") : "", bar), body,
       el("div", { class: "row sq-foot" }, btn(tr("Give up"), leave, false, "link")));
     ask();
   }
@@ -1104,6 +1107,15 @@ window.StudyCore = StudyCore;
   $("sqHome").onclick = home;
   setupFullscreen(root);
   window.StudyQuest = { home, chapter, cards, quiz, written, attempt, progress: () => prog, books: () => books };   // for tests
+  // one step back: a stage's cards, round or result go to their chapter (or Home, for a book in one part or the mixed quiz); an answer
+  // being written to the list of questions; anything else to Home. A round half-way asks first.
+  function goBack() {
+    const { b, c, mix } = here, bk = b || book();
+    if (["cards", "quiz", "result"].includes(screen) && !mix && c && !onePart(bk)) return chapter(bk, c);
+    if (["attempt", "wfinish"].includes(screen) && bk) return written(bk);
+    home();
+  }
+  window.SoraNav?.register({ depth: () => (screen === "home" ? 0 : 1), busy: () => screen === "quiz", back: goBack });
   home();
   // opened from a link (the Mind Map): ?stage=<id> shows that stage's cards, ?chapter=<n> the chapter
   {

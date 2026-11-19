@@ -30,13 +30,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
 
 <meta name="robots" content="noindex, nofollow">
-<script>window.SORA_EDITION = "maryamxon"; window.SORA_STATIC = true;</script>
+<script>window.SORA_EDITION = "maryamxon"; window.SORA_STATIC = true; window.SORA_HOME = "/maryamxon/";</script>
 <link rel="icon" href="/maryamxon/icon-192.png">
 <link rel="manifest" href="/maryamxon/app.webmanifest">
 <link rel="apple-touch-icon" href="/maryamxon/icon-192.png">
 <meta name="theme-color" content="#07090d">
 <link rel="stylesheet" href="/static/app.css">
 </head>
+
 
 <body data-coins-float>
 <div class="app">
@@ -160,6 +161,10 @@
   @keyframes sq-burst { 0% { opacity: 1; transform: rotate(var(--a)) translateX(0) scale(.6); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(120px) scale(1.1); } }
   @media (prefers-reduced-motion: reduce) { .sq-burst { display: none; } }
   .sq-chip .coin-pot { font-size: 12px; padding: 0 6px; }
+  /* a round's ✕ (going back, common.js SoraNav) beside its bar */
+  .sq-hudrow { display: flex; align-items: center; gap: var(--space-3); }
+  .sq-hudrow .sq-hud { flex: 1; min-width: 0; }
+  .sq-hudrow .nav-x { background: var(--bg-200); color: var(--ink); border-color: var(--line); }
   /* Reviews: a bar above the chapters, and a page of its own */
   .sq-revtile { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3); width: 100%; height: auto; margin-top: var(--space-6);
     padding: var(--space-3) var(--space-4); text-align: left; text-transform: none; letter-spacing: 0; border-radius: 0; border-left: 4px solid var(--signal); }

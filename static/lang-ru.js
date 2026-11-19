@@ -589,4 +589,9 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "coins collected": "собрано монет",
   "Earlier": "Раньше",
   "Your coins, results and achievements: the balance, what's still to win in each subject, medals and cups.": "Ваши монеты, результаты и достижения: баланс, что ещё можно выиграть в каждом предмете, медали и кубки.",
+  // ---------- going back (19.11.2026): the ← button, a game's ✕, leaving a round half-way ----------
+  "Exit": "Выйти",
+  "Leave": "Выйти",
+  "Stay": "Остаться",
+  "Leave this round? It won't count.": "Выйти из раунда? Он не засчитается.",
 } });

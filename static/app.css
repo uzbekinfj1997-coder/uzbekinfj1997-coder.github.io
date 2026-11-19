@@ -359,3 +359,26 @@ body[data-coins-float] .coin-pill { position: fixed; z-index: 1200; }      /* el
 @keyframes coin-pulse { 50% { box-shadow: 0 0 0 5px rgba(255, 90, 54, .25); } }
 @keyframes coin-in { from { opacity: 0; transform: translate(-50%, -16px) scale(.92); } }
 @media (prefers-reduced-motion: reduce) { .coin-pot::after, .coin-tag.hot, .coin-pill.bump, .coin-plus, .coin-ach { animation: none; } }
+
+/* ---------- going back (common.js SoraNav, 19.11.2026): the ← button across from the coins, a game's ✕, the question before leaving a
+   round half-way ---------- */
+.nav-back { position: absolute; top: 10px; left: 254px; z-index: 900; display: inline-grid; place-items: center; width: 42px; height: 42px; padding: 0;
+  border-radius: 50%; background: var(--bg-200); border: 2px solid var(--line); color: var(--ink); font-size: 22px; line-height: 1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .35); text-transform: none; letter-spacing: 0; }
+.nav-back:hover { border-color: var(--volt); color: var(--volt-text, var(--volt)); }
+body[data-coins-float] .nav-back { position: fixed; z-index: 1200; }
+@media (max-width: 760px) {
+  .nav-back { left: 8px; top: 8px; width: 40px; height: 40px; }
+  body:not([data-home]) .side .brand { margin-left: 50px; }
+}
+.nav-x { position: absolute; top: 10px; left: 10px; z-index: 40; display: inline-grid; place-items: center; width: 40px; min-height: 40px; height: 40px; padding: 0;
+  border-radius: 50%; background: rgba(5, 8, 14, .6); border: 2px solid rgba(255, 255, 255, .7); color: #fff; font-size: 18px; font-weight: 800; line-height: 1;
+  text-transform: none; letter-spacing: 0; }
+.nav-x:hover { background: rgba(5, 8, 14, .85); border-color: #fff; }
+.nav-x.inline { position: static; flex: none; }
+.nav-x[hidden] { display: none; }
+.nav-ask { position: fixed; inset: 0; z-index: 1400; display: grid; place-items: center; padding: var(--space-4); background: rgba(0, 0, 0, .55); }
+.nav-ask-card { display: grid; gap: var(--space-4); max-width: 380px; padding: var(--space-6); background: var(--bg-200); border: 1px solid var(--line); border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .5); }
+.nav-ask-card p { margin: 0; font-size: 18px; font-weight: 600; line-height: 1.4; }
+.nav-ask-card .row { gap: var(--space-2); flex-wrap: wrap; }

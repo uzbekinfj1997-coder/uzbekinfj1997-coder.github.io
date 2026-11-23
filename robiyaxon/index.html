@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-app="robiyaxon" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,26 +24,24 @@
 <script src="/static/lang-ru.js"></script>
 <script src="/static/lang.js"></script>
 <script src="/static/players.js"></script>
-<script>document.documentElement.dataset.theme = localStorage.getItem("theme") || "dark";</script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@500;600;700&family=Fira+Sans:wght@400;500;600;700&display=swap">
+<script>window.SORA_DEFAULT_THEME = "light"; document.documentElement.dataset.theme = localStorage.getItem("theme") || window.SORA_DEFAULT_THEME;</script>
+<link rel="stylesheet" href="/static/fonts/fonts.css">
 <meta name="robots" content="noindex, nofollow">
 <script>window.SORA_EDITION = "robiyaxon"; window.SORA_STATIC = true; window.SORA_HOME = "/robiyaxon/";</script>
 <link rel="icon" href="/robiyaxon/icon-192.png">
 <link rel="manifest" href="/robiyaxon/app.webmanifest">
 <link rel="apple-touch-icon" href="/robiyaxon/icon-192.png">
-<meta name="theme-color" content="#07090d">
+<meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="/static/app.css">
 </head>
+
 
 
 <body data-coins-float data-home>
 <div class="app">
 <aside class="side">
   <a class="brand" href="/robiyaxon/"><span class="brand-mark">R</span>Robiyaxon</a>
-  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></button>
+  <button class="player-btn" id="playerBtn" type="button" title="Change player, or add one" data-t-title data-app-name="Robiyaxon"><span class="player-avatar" id="playerAvatar" aria-hidden="true"></span><span class="player-text"><span class="ov-label" data-t>Player</span><span class="player-name" id="playerName"></span></span></button>
   <a class="nav-item" href="/robiyaxon/" aria-current="page" data-t>Home</a>
   <a class="nav-item nav-account" href="/robiyaxon/account/" ><span aria-hidden="true">🪙</span> <span data-t>My account</span></a>
   
@@ -70,6 +68,16 @@
   </div>
 </aside>
 <main>
+  <header class="topbar" id="topbar">
+    <span class="tb-back" id="backSlot"></span>
+    <a class="tb-brand" href="/robiyaxon/"><span class="brand-mark">R</span><span>Robiyaxon</span></a>
+    
+    <span class="tb-gap"></span>
+    <span class="tb-coins" id="coinSlot"></span>
+    <button class="tb-player" id="tbPlayer" type="button" title="Change player, or add one" aria-label="Change player, or add one" data-t-title onclick="document.getElementById('playerBtn').click()"><span id="tbAvatar"></span></button>
+    <button class="tb-icon" id="tbSettings" type="button" title="Settings" aria-label="Settings" data-t-title><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <button class="tb-icon" id="tbFull" type="button" title="Full screen" aria-label="Full screen" data-t-title hidden><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+  </header>
   <div class="update-panel hidden" id="updatePanel">
     <div id="updateBody"></div>
     <button class="link" title="Close" onclick="closeUpdatePanel()">✕</button>
@@ -85,13 +93,12 @@
   .home-coins:hover { border-color: #ffc83d; }
   .home-coins > span { display: grid; gap: 2px; }
   .home-coins small { color: var(--ink-muted); font-size: 13px; }
-  .home-coins .go { margin-left: auto; font-weight: 800; text-transform: uppercase; color: var(--volt-text, var(--volt)); }
+  .home-coins .go { margin-left: auto; font-weight: 750; color: var(--accent-text); }
   .home-pot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: var(--space-2) 0; }
 </style>
 <div class="page-title">
-  <div class="ov-label">Robiyaxon</div>
-  <h1 data-t>Games</h1>
-  <p data-t>Pick a game.</p>
+  <h1>Robiyaxon</h1>
+  <p data-t>Your subjects, games and walks, in one place.</p>
 </div>
 <div id="homeCoins"></div>
 
@@ -136,6 +143,37 @@
 
 </main>
 </div>
+<nav class="tabbar" id="tabbar" aria-label="Main">
+  
+  
+  <a class="tab-item" href="/robiyaxon/" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span data-t>Home</span></a>
+  
+  
+  
+  <button class="tab-item" type="button" data-sheet="sheet-study"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span data-t>Subjects</span></button>
+  
+  
+  <a class="tab-item" href="/robiyaxon/study-duel/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><span data-t>Club</span></a>
+  
+  
+  
+  <a class="tab-item" href="/robiyaxon/walks/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.1 6.3 9.9 4.2a2 2 0 0 0-1.8 0L3.6 6.5A1 1 0 0 0 3 7.4v12a1 1 0 0 0 1.4.9l3.7-1.9a2 2 0 0 1 1.8 0l4.2 2.1a2 2 0 0 0 1.8 0l4.5-2.3a1 1 0 0 0 .6-.9v-12a1 1 0 0 0-1.4-.9l-3.7 1.9a2 2 0 0 1-1.8 0z"/><path d="M15 6.8v14M9 3.2v14"/></svg><span data-t>Walks</span></a>
+  
+  
+  
+  <a class="tab-item" href="/robiyaxon/account/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/></svg><span data-t>Account</span></a>
+  
+  
+</nav>
+
+<div class="sheet" id="sheet-study" hidden>
+  <div class="sheet-card" role="dialog" aria-label="Subjects">
+    <div class="sheet-grip" aria-hidden="true"></div>
+    <h2 data-t>Subjects</h2>
+    <a class="sheet-item" href="/robiyaxon/study-quest/anatomy/"><span data-t>Anatomy</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a><a class="sheet-item" href="/robiyaxon/study-quest/orgchem/"><span data-t>Organic Chemistry</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a><a class="sheet-item" href="/robiyaxon/study-quest/pathology/"><span data-t>Pathology</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a>
+  </div>
+</div>
+
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
 
@@ -163,7 +201,7 @@
     el("span", { class: "coin-pot big" }, `🪙 ${fmt(s.balance)}`),
     el("span", {}, el("b", {}, tr("Your coins")), el("small", {}, `${t.icon} ${tr(t.name)}`)),
     toWin ? el("span", {}, el("b", {}, tr("🪙 {n} still to win", { n: fmt(toWin) })), el("small", {}, today ? tr("today 🪙 {n}", { n: fmt(today) }) : tr("in your subjects"))) : "",
-    el("span", { class: "go" }, tr("My account ▶"))));
+    el("span", { class: "go" }, tr("My account"))));
 })();
 </script>
 

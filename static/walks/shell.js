@@ -123,7 +123,7 @@ void main() { float d = length(vP - uCam) / ${PICK_RANGE}.0; vec4 e = fract(d * 
     const REACH = cfg.ahead ? AHEAD * 2 : 25;     // and how far on it looks for where you are: indoors the way back from a room is close by
     const { S, renderer, world, zoneName } = cfg, PH = cfg.photos || [], STATIC = root.dataset.static, EYE = cfg.eye, OTHERS = JSON.parse(root.dataset.others || "[]");
     localStorage.setItem("sora.walks.last", root.dataset.place);
-    const INK = { route: "#1f6fff", you: "#ff4f2e", mark: "#ff2a93", gate: "#14b45a" };
+    const INK = { route: "#1f6fff", you: "#ff4f2e", mark: "#f5b301", gate: "#14b45a" };
     const MAP_FONT = getComputedStyle(document.body).fontFamily;
 
     let R, routePts = [], marks = [];
@@ -469,7 +469,7 @@ void main() { float d = length(vP - uCam) / ${PICK_RANGE}.0; vec4 e = fract(d * 
     const ringOf = (d) => d.ring || [d.tx, d.tz];
     const arrowLen = (d) => 2.4 * d.size;
     const arrowTop = (d) => (d.up ? d.tip : d.tip + arrowLen(d) + 0.25 * d.size);
-    const MARK = [1, 0.1, 0.52], paint = cfg.paint;
+    const MARK = [0.9, 0.4, 0.04], paint = cfg.paint;      // a warm gold once lit (redesign 23.11.2026; was a hot pink)
     // a flat ring, visible from both sides
     function floorRing(m, x, y, z, r0, r1, seg = 56) {
       for (let i = 0; i < seg; i++) {
@@ -550,18 +550,28 @@ void main() { float d = length(vP - uCam) / ${PICK_RANGE}.0; vec4 e = fract(d * 
     new ResizeObserver(() => { if (!bigBox.hidden) drawBigMap(); }).observe(bigCanvas);
 
     // ---------- menus ----------
+    // the start card (redesign 23.11.2026): a small frosted card over the live scene, with the title, one line, Start, and the controls
+    // and the other choices in a panel of their own (Controls ?), so the scene stays in view
     function showMenu(first) {
       menu.hidden = false;
+      const keys = [["W A S D / arrows", "walk, and step left and right"], ["Mouse", "turn and look (click the view first)"], ["Q E", "turn without the mouse"], ["Shift", "walk faster"], ...(cfg.jump ? [["Space", "jump"]] : []), ...(cfg.duck ? [["Z", "duck (hold it down)"]] : []), [AUTONAME, "walk the route for me / stop"], ["G", "a list of destinations: be there at once, with a marker on the spot"], ["X", "clear the marker"], ["Click", "go to the spot under the white dot"], ["M", "the big map: click anywhere to go there"], ["Tab", "free the mouse: click spots, move and size the map window"], ["N, + and −", "minimise the map window, zoom it"], ...(PH.length ? [["P", "see the real photo nearest to you"]] : []), ...USES.map((u) => [u.key.toUpperCase(), u.label]), ["Esc", "this menu"], ["Touch", "drag to look, tap a spot to go there, arrows to walk"]];
+      const more = [btn("Big map", openBigMap), PH.length ? btn("Real photos", () => showPhoto(Math.max(0, PH.indexOf(nearestPhoto()?.p)))) : "",
+        first ? "" : btn("Back to the start", () => { const q = R.at(0); teleport(q.x, q.z, q.yaw); autoAlong = 0; walked = 0; shownMark = null; setTarget(null); go(true); }),
+        OTHERS.length ? btn("Change walk", () => { location.href = root.dataset.home; }) : "", ...(cfg.menu.buttons || []).map(([label, act]) => btn(label, act))].filter(Boolean);
+      const drawer = el("div", { class: "walk-drawer", hidden: true, role: "dialog", "aria-label": "Controls and shortcuts" },
+        el("div", { class: "walk-drawer-head" }, el("h3", {}, "Controls and shortcuts"), el("button", { type: "button", class: "walk-drawer-x", "aria-label": "Close", onclick: () => { drawer.hidden = true; } }, "✕")),
+        el("div", { class: "walk-keys" }, ...keys.flatMap(([k, v]) => [el("kbd", {}, k), el("span", {}, v)])),
+        more.length ? el("div", { class: "walk-more" }, ...more) : "",
+        el("p", { class: "walk-credit" }, cfg.menu.credit));
+      const mins = Math.max(1, Math.round(R.total / cfg.pace.normal / 60)), line = R.total < 100 ? `A short walk · about ${mins} minute${mins === 1 ? "" : "s"}` : `${(R.total / 1000).toFixed(1)} km · about ${mins} minute${mins === 1 ? "" : "s"} at a walking pace`;
       menu.replaceChildren(el("div", { class: "walk-menu" },
         el("h2", {}, cfg.menu.title),
-        el("p", {}, `${cfg.menu.text} About ${(R.total / 1000).toFixed(1)} km, ${Math.round(R.total / cfg.pace.normal / 60)} minutes at a walking pace.`),
-        el("div", { class: "row" }, btn(first ? "Start: walk the route" : "Walk the route for me", () => { if (first) autoAlong = 0; else autoAlong = R.nearest(me.x, me.z).along; go(true); }, true), btn(first ? "Explore on my own" : "Carry on", () => go(false)), btn("Go to…", openGoto), btn("Big map", openBigMap),
-          PH.length ? btn("Real photos", () => showPhoto(Math.max(0, PH.indexOf(nearestPhoto()?.p)))) : "",
-          first ? "" : btn("Back to the start", () => { const q = R.at(0); teleport(q.x, q.z, q.yaw); autoAlong = 0; walked = 0; shownMark = null; setTarget(null); go(true); }),
-          OTHERS.length ? btn("Change walk", () => { location.href = root.dataset.home; }) : "",
-          ...(cfg.menu.buttons || []).map(([label, act]) => btn(label, act))),
-        el("div", { class: "walk-keys" }, ...[["W A S D / arrows", "walk, and step left and right"], ["Mouse", "turn and look (click the view first)"], ["Q E", "turn without the mouse"], ["Shift", "walk faster"], ...(cfg.jump ? [["Space", "jump"]] : []), ...(cfg.duck ? [["Z", "duck (hold it down)"]] : []), [AUTONAME, "walk the route for me / stop"], ["G", "a list of destinations: be there at once, with a marker on the spot"], ["X", "clear the marker"], ["Click", "go to the spot under the white dot"], ["M", "the big map: click anywhere to go there"], ["Tab", "free the mouse: click spots, move and size the map window"], ["N, + and −", "minimise the map window, zoom it"], ...(PH.length ? [["P", "see the real photo nearest to you"]] : []), ...USES.map((u) => [u.key.toUpperCase(), u.label]), ["Esc", "this menu"], ["Touch", "drag to look, tap a spot to go there, arrows to walk"]].flatMap(([k, v]) => [el("kbd", {}, k), el("span", {}, v)])),
-        el("p", { class: "walk-credit" }, cfg.menu.credit)));
+        el("p", { class: "walk-line" }, first ? line : "Paused"),
+        el("p", { class: "walk-about" }, cfg.menu.text),
+        el("div", { class: "walk-actions" },
+          btn(first ? "Start: walk the route" : "Walk the route for me", () => { if (first) autoAlong = 0; else autoAlong = R.nearest(me.x, me.z).along; go(true); }, true),
+          btn(first ? "Explore on my own" : "Carry on", () => go(false))),
+        el("div", { class: "walk-actions quiet" }, btn("Go to…", openGoto), btn("Controls ?", () => { drawer.hidden = false; drawer.querySelector("button").focus(); }))), drawer);
     }
     function btn(label, onclick, primary = false) { return el("button", { type: "button", class: primary ? "primary" : "", onclick }, label); }
     let lockFailed = false;

@@ -113,7 +113,7 @@ function setupAppSettings() {
     return x;
   }));
   function render() {
-    const rows = [row(tr("Theme"), "", choice(tr("Theme"), THEMES.map(([t, name]) => [t, tr(name)]), document.documentElement.dataset.theme || "dark", (t) => { setTheme(t); render(); }))];
+    const rows = [row(tr("Theme"), "", choice(tr("Theme"), THEMES.map(([t, name]) => [t, tr(name)]), document.documentElement.dataset.theme || window.SORA_DEFAULT_THEME || "dark", (t) => { setTheme(t); render(); }))];
     const L = window.SoraLang;
     if (L && L.langs.length > 1) {
       rows.push(row(tr("Language"), "", choice(tr("Language"), L.langs.map((l) => [l, L.names[l] || l]), L.lang, (l) => { if (l !== L.lang) L.set(l); })));
@@ -302,9 +302,56 @@ const SoraNav = (() => {
   function mount() {
     if (!window.SORA_HOME || document.body.hasAttribute("data-home") || document.getElementById("soraBack")) return;
     const b = el("button", { type: "button", id: "soraBack", class: "nav-back", title: tr("Back"), "aria-label": tr("Back"), onclick: () => back() }, el("b", { "aria-hidden": "true" }, "←"));
-    document.body.append(b);
+    (document.getElementById("backSlot") || document.body).append(b);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount); else mount();
   return { register, changed, back, ask, exitButton, home: goHome };
 })();
 window.SoraNav = SoraNav;
+
+
+// ---------- the shell (redesign 23.11.2026): the top bar's Settings and Full screen, the phone's tab bar and its sheets ----------
+// A page's own Settings / Full screen / Home buttons stay in the page but are hidden (they're shown again inside a full screen, where
+// the top bar is covered); the top bar's buttons press the page's own ones, so each game's settings and full screen work as before.
+(() => {
+  const main = document.querySelector("main"), bar = document.getElementById("topbar");
+  if (!main || !bar) return;
+  const visible = (b) => !b.closest(".hidden, [hidden]");
+  const own = (sel) => [...main.querySelectorAll(sel)].filter((b) => !bar.contains(b));
+  const pick = (sel) => own(sel).find(visible) || null;
+  function mark() {
+    for (const b of own("[data-settings], [data-fullscreen], #sqHome, #homeBtn")) {
+      const row = b.parentElement;
+      if (!row || !row.querySelector("[data-settings], [data-fullscreen]")) continue;
+      b.classList.add("dup-ctl");
+      if ([...row.children].every((c) => c.classList.contains("dup-ctl"))) row.classList.add("dup-bar");
+    }
+    document.getElementById("tbFull").hidden = !own("[data-fullscreen]").length;
+  }
+  mark();
+  new MutationObserver(() => { if (own("[data-settings]:not(.dup-ctl), [data-fullscreen]:not(.dup-ctl)").length) mark(); }).observe(main, { childList: true, subtree: true });
+  const appSettings = () => document.getElementById("settingsBtn")?.click();
+  document.getElementById("tbFull").addEventListener("click", () => pick("[data-fullscreen]")?.click());
+  document.getElementById("tbSettings").addEventListener("click", () => {
+    const game = pick("[data-settings]");
+    if (!game) return appSettings();
+    const box = el("div", { class: "sheet", role: "presentation" },
+      el("div", { class: "sheet-card", role: "dialog", "aria-label": tr("Settings") }, el("div", { class: "sheet-grip", "aria-hidden": "true" }),
+        el("h2", {}, tr("Settings")),
+        el("button", { type: "button", class: "sheet-item", onclick: () => { box.remove(); game.click(); } }, el("span", {}, tr("This page's settings")), el("small", {}, tr("sound, levels, how it plays"))),
+        el("button", { type: "button", class: "sheet-item", onclick: () => { box.remove(); appSettings(); } }, el("span", {}, tr("App settings")), el("small", {}, tr("theme, language, backup file")))));
+    box.addEventListener("click", (e) => { if (e.target === box) box.remove(); });
+    document.body.append(box);
+    box.querySelector("button").focus();
+  });
+  // the tab bar's sheets: a list of the subjects or games, over the page
+  for (const t of document.querySelectorAll("[data-sheet]")) t.addEventListener("click", () => {
+    const s = document.getElementById(t.dataset.sheet); if (!s) return;
+    s.hidden = false; s.querySelector("a, button")?.focus();
+  });
+  for (const s of document.querySelectorAll(".sheet[id]")) s.addEventListener("click", (e) => { if (e.target === s) s.hidden = true; });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") for (const s of document.querySelectorAll(".sheet[id]:not([hidden])")) s.hidden = true; });
+  // a game or walk in full screen covers everything: the tab bar steps aside
+  const watch = () => document.body.classList.toggle("has-fullscreen", !!document.querySelector(".is-fullscreen"));
+  new MutationObserver(watch).observe(main, { attributes: true, subtree: true, attributeFilter: ["class"] });
+})();

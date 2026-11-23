@@ -594,4 +594,13 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "Leave": "Выйти",
   "Stay": "Остаться",
   "Leave this round? It won't count.": "Выйти из раунда? Он не засчитается.",
+  // the redesign's shell (23.11.2026)
+  "Subjects": "Предметы",
+  "Club": "Клуб",
+  "Account": "Аккаунт",
+  "Your subjects, games and walks, in one place.": "Ваши предметы, игры и прогулки в одном месте.",
+  "This page's settings": "Настройки этой страницы",
+  "sound, levels, how it plays": "звук, уровни, ход игры",
+  "App settings": "Настройки приложения",
+  "theme, language, backup file": "тема, язык, файл с копией",
 } });

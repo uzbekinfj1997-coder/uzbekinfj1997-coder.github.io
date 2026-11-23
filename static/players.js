@@ -136,7 +136,18 @@ const SoraPlayers = (() => {
     if (e.key === "Escape") { e.preventDefault(); close(); }
   }, true);
 
-  function showName() { const n = document.getElementById("playerName"); if (n) n.textContent = nameOf(load().list.find((p) => p.id === here)); }
+  function showName() {
+    // the profile pill (redesign 23.11.2026): the player's name and its first letter; on a website with a single player still called
+    // "Player 1", the app's own name (Aziza, Maryamxon…) stands in
+    const n = document.getElementById("playerName"), a = document.getElementById("playerAvatar"), s = load();
+    let name = nameOf(s.list.find((p) => p.id === here));
+    const appName = document.getElementById("playerBtn")?.dataset.appName;
+    if (window.SORA_STATIC && appName && s.list.length === 1 && /^(Player|Игрок) 1$/.test(name)) name = appName;
+    if (n) n.textContent = name;
+    const letter = (name || "?").trim().charAt(0).toUpperCase();
+    if (a) a.textContent = letter;
+    const tb = document.getElementById("tbAvatar"); if (tb) tb.textContent = letter;
+  }
   document.addEventListener("DOMContentLoaded", () => {
     showName();
     document.getElementById("playerBtn")?.addEventListener("click", () => open());

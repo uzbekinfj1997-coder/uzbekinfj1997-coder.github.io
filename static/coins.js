@@ -294,9 +294,10 @@ const SoraCoins = (() => {
     if (ACCOUNT) pill.href = ACCOUNT;
     pill.title = T("Your coins: open My account");
     pill.innerHTML = '<span class="coin-ico" aria-hidden="true">🪙</span><b class="coin-n"></b>';
-    document.body.append(pill);
+    const home = () => document.getElementById("coinSlot") || document.body;      // the top bar's place for it (redesign 23.11.2026)
+    home().append(pill);
     // in full screen it goes along, where it floats (the pages where coins are earned); a game's or a walk's full screen is its own
-    if (document.body.hasAttribute("data-coins-float")) for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => (document.fullscreenElement || document.body).append(pill));
+    if (document.body.hasAttribute("data-coins-float")) for (const ev of ["fullscreenchange", "webkitfullscreenchange"]) document.addEventListener(ev, () => { pill.classList.toggle("in-full", !!document.fullscreenElement); (document.fullscreenElement || home()).append(pill); });
     paint(false);
   }
   function paint(animate = true) {

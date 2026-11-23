@@ -10,16 +10,10 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "Study": "Учёба",
   "Games": "Игры",
   "Pick a game.": "Выберите игру.",
-  "Anatomy": "Анатомия",
-  "Organic Chemistry": "Органическая химия",
-  "Pathology": "Патология",
+  "Physiology": "Физиология",
   "Walks": "Прогулки",
-  "Anatomy, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.":
-    "Анатомия глава за главой, в виде игры: карточки, затем тесты на время и повторения по расписанию.",
-  "Organic Chemistry, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.":
-    "Органическая химия глава за главой, в виде игры: карточки, затем тесты на время и повторения по расписанию.",
-  "Pathology, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.":
-    "Патология глава за главой, в виде игры: карточки, затем тесты на время и повторения по расписанию.",
+  "Physiology, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.":
+    "Физиология глава за главой, в виде игры: карточки, затем тесты на время и повторения по расписанию.",
   "A walk round Masjid al-Haram in Makkah: the plaza below the clock tower, King Abdul Aziz Gate, the Mataf and the Kaaba, then Safa to Marwa. Built from OpenStreetMap and open-licence photographs. Works offline.":
     "Прогулка по Масджид аль-Харам в Мекке: площадь под часовой башней, ворота короля Абдул-Азиза, Матаф и Кааба, затем от Сафы до Марвы. Построена по OpenStreetMap и фотографиям с открытой лицензией. Работает без интернета.",
   "Your progress stays in this browser": "Прогресс хранится в этом браузере",

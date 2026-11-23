@@ -47,11 +47,7 @@
   
   <div class="nav-label" data-t>Study</div>
   
-  <a class="nav-item" href="/robiyaxon/study-quest/anatomy/"  data-t>Anatomy</a>
-  
-  <a class="nav-item" href="/robiyaxon/study-quest/orgchem/"  data-t>Organic Chemistry</a>
-  
-  <a class="nav-item" href="/robiyaxon/study-quest/pathology/"  data-t>Pathology</a>
+  <a class="nav-item" href="/robiyaxon/study-quest/physiology/"  data-t>Physiology</a>
   
   <a class="nav-item" href="/robiyaxon/study-duel/" aria-current="page" data-t>Study Duel</a>
   
@@ -236,7 +232,8 @@
   
   
   
-  <button class="tab-item" type="button" data-sheet="sheet-study"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span data-t>Subjects</span></button>
+  <a class="tab-item" href="/robiyaxon/study-quest/physiology/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span data-t>Study</span></a>
+  
   
   
   <a class="tab-item" href="/robiyaxon/study-duel/" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><span data-t>Club</span></a>
@@ -252,24 +249,14 @@
   
 </nav>
 
-<div class="sheet" id="sheet-study" hidden>
-  <div class="sheet-card" role="dialog" aria-label="Subjects">
-    <div class="sheet-grip" aria-hidden="true"></div>
-    <h2 data-t>Subjects</h2>
-    <a class="sheet-item" href="/robiyaxon/study-quest/anatomy/"><span data-t>Anatomy</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a><a class="sheet-item" href="/robiyaxon/study-quest/orgchem/"><span data-t>Organic Chemistry</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a><a class="sheet-item" href="/robiyaxon/study-quest/pathology/"><span data-t>Pathology</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a>
-  </div>
-</div>
-
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
 
-<script>window.SORA_ACCOUNT_PAGE = "/robiyaxon/account/"; window.SORA_BOOK_NAMES = {"anatomy": "Anatomy", "orgchem": "Organic Chemistry", "pathology": "Pathology"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/robiyaxon/study-duel/";</script>
+<script>window.SORA_ACCOUNT_PAGE = "/robiyaxon/account/"; window.SORA_BOOK_NAMES = {"physiology": "Physiology"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/robiyaxon/study-duel/";</script>
 <script src="/static/coins.js"></script>
 
-<script>window.SORA_DUEL_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_DUEL_TOOL = "study-duel"; window.SORA_DUEL_DECKS = ["anatomy", "orgchem", "pathology"];</script>
-<script src="/static/study/anatomy.js"></script>
-<script src="/static/study/orgchem.js"></script>
-<script src="/static/study/pathology.js"></script>
+<script>window.SORA_DUEL_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_DUEL_TOOL = "study-duel"; window.SORA_DUEL_DECKS = ["physiology"];</script>
+<script src="/static/study/physiology.js"></script>
 <script src="/static/study/books-lang.js"></script>
 <script src="/static/duel/game.js"></script>
 

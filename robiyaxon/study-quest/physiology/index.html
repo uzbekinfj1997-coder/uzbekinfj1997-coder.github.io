@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Organic Chemistry · Robiyaxon</title>
+<title>Physiology · Robiyaxon</title>
 <script>
 /* Several apps share this web address: each keeps what it saves (scores, players, theme) apart, under its own name. What was saved
    before they were kept apart is copied into each app once. SoraApp.keys() lists this app's own keys, for the backup file. */
@@ -47,11 +47,7 @@
   
   <div class="nav-label" data-t>Study</div>
   
-  <a class="nav-item" href="/robiyaxon/study-quest/anatomy/"  data-t>Anatomy</a>
-  
-  <a class="nav-item" href="/robiyaxon/study-quest/orgchem/" aria-current="page" data-t>Organic Chemistry</a>
-  
-  <a class="nav-item" href="/robiyaxon/study-quest/pathology/"  data-t>Pathology</a>
+  <a class="nav-item" href="/robiyaxon/study-quest/physiology/" aria-current="page" data-t>Physiology</a>
   
   <a class="nav-item" href="/robiyaxon/study-duel/"  data-t>Study Duel</a>
   
@@ -71,7 +67,7 @@
   <header class="topbar" id="topbar">
     <span class="tb-back" id="backSlot"></span>
     <a class="tb-brand" href="/robiyaxon/"><span class="brand-mark">R</span><span>Robiyaxon</span></a>
-    <span class="tb-title" data-t>Organic Chemistry</span>
+    <span class="tb-title" data-t>Physiology</span>
     <span class="tb-gap"></span>
     <span class="tb-coins" id="coinSlot"></span>
     <button class="tb-player" id="tbPlayer" type="button" title="Change player, or add one" aria-label="Change player, or add one" data-t-title onclick="document.getElementById('playerBtn').click()"><span id="tbAvatar"></span></button>
@@ -84,7 +80,7 @@
   </div>
   
   
-  <div class="page-title"><h1 data-t>Organic Chemistry</h1><p data-t>Organic Chemistry, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.</p></div>
+  <div class="page-title"><h1 data-t>Physiology</h1><p data-t>Physiology, chapter by chapter, as a game: cards, then quizzes against the clock, with reviews on a schedule.</p></div>
   
   
 <style>
@@ -380,7 +376,8 @@
   
   
   
-  <button class="tab-item" type="button" data-sheet="sheet-study" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span data-t>Subjects</span></button>
+  <a class="tab-item" href="/robiyaxon/study-quest/physiology/" aria-current="page"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg><span data-t>Study</span></a>
+  
   
   
   <a class="tab-item" href="/robiyaxon/study-duel/"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg><span data-t>Club</span></a>
@@ -396,23 +393,15 @@
   
 </nav>
 
-<div class="sheet" id="sheet-study" hidden>
-  <div class="sheet-card" role="dialog" aria-label="Subjects">
-    <div class="sheet-grip" aria-hidden="true"></div>
-    <h2 data-t>Subjects</h2>
-    <a class="sheet-item" href="/robiyaxon/study-quest/anatomy/"><span data-t>Anatomy</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a><a class="sheet-item is-here" href="/robiyaxon/study-quest/orgchem/"><span data-t>Organic Chemistry</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a><a class="sheet-item" href="/robiyaxon/study-quest/pathology/"><span data-t>Pathology</span><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a>
-  </div>
-</div>
-
 <script src="/static/common.js"></script>
 <script src="/static/backup.js"></script>
 
-<script>window.SORA_ACCOUNT_PAGE = "/robiyaxon/account/"; window.SORA_BOOK_NAMES = {"anatomy": "Anatomy", "orgchem": "Organic Chemistry", "pathology": "Pathology"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/robiyaxon/study-duel/";</script>
+<script>window.SORA_ACCOUNT_PAGE = "/robiyaxon/account/"; window.SORA_BOOK_NAMES = {"physiology": "Physiology"}; window.SORA_CLUB_URL = "https://tiluser.org/tg/ameen_bot/webhook"; window.SORA_CLUB_PAGE = "/robiyaxon/study-duel/";</script>
 <script src="/static/coins.js"></script>
 
 <script src="/static/palace/core.js"></script>
-<script>window.SORA_BOOK = "orgchem";</script>
-<script src="/static/study/orgchem.js"></script>
+<script>window.SORA_BOOK = "physiology";</script>
+<script src="/static/study/physiology.js"></script>
 <script src="/static/study/books-lang.js"></script>
 <script src="/static/study/game.js"></script>
 

@@ -355,3 +355,23 @@ window.SoraNav = SoraNav;
   const watch = () => document.body.classList.toggle("has-fullscreen", !!document.querySelector(".is-fullscreen"));
   new MutationObserver(watch).observe(main, { attributes: true, subtree: true, attributeFilter: ["class"] });
 })();
+
+// ---------- Memory Palace and SBR Palace were removed (23.11.2026): their saved lists go too, once, on each device ----------
+// The user chose to delete them. Memory Ops keeps its own routes and lists, which live in the same store under "ops-…" ids.
+(() => {
+  if (window.SORA_STATIC) return;                         // only Sora personal ever had them
+  try {
+    if (localStorage.getItem("sora-palaces-removed")) return;
+    const KEY = "sora.memoryPalace.v1", s = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (s) {
+      const ops = (id) => String(id || "").startsWith("ops-"), P = Object.entries(s.palaces || {}), L = Object.entries(s.lists || {});
+      const keepP = P.filter(([id]) => ops(id)), keepL = L.filter(([, l]) => ops(l?.palace));
+      if (keepP.length < P.length || keepL.length < L.length) {         // written back only when something of theirs was there
+        s.palaces = Object.fromEntries(keepP); s.lists = Object.fromEntries(keepL);
+        localStorage.setItem(KEY, JSON.stringify(s));
+      }
+    }
+    for (const k of ["sora.memoryPalace.custom.v1", "sora.memoryPalace.imported.v1", "sora.sbrPalace.v1"]) localStorage.removeItem(k);
+    localStorage.setItem("sora-palaces-removed", String(Date.now()));      // outside "sora.": one mark for every player
+  } catch { /* storage unavailable: nothing to clear */ }
+})();

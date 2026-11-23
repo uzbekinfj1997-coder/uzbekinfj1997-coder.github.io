@@ -676,7 +676,7 @@ window.StudyCore = StudyCore;
   function home() {
     screen = "home"; books = C.books(); reviewQueue = [];        // "Review all due" lasts while its Next review buttons are followed
     const b = book(); bookId = b?.id;
-    if (!b) return view(head("No books yet", "Import a list file in Memory Palace to study it here."));
+    if (!b) return view(head("No books yet", "There are no books here yet."));
     const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids), o = COINS ? potOpts() : null;
     if (COINS) markClear(lists, dueIds);
     const streak = prog.streak.last >= C.startOfDay(Date.now()) - C.DAY ? prog.streak.days : 0;
@@ -828,9 +828,7 @@ window.StudyCore = StudyCore;
   function palaceButton(l) {
     // only stages that are real lists or checklists (tagged "palace") go along a route
     if (!l.palace || l.items.length > 15 || l.items.some((it) => C.kindOf(it) !== "sentence")) return "";
-    const found = C.palaceList(l.id);
-    return found ? el("a", { class: "button small sq-palace", href: `/memory-palace/?recall=${encodeURIComponent(found.list.id)}` }, "Recall in the palace")
-      : el("a", { class: "button small sq-palace", href: `/memory-palace/?store=${encodeURIComponent(l.id)}` }, "Store in a palace");
+    return "";      // Memory Palace was removed (23.11.2026): nothing to store a stage in
   }
 
   const TRACKS = [["know", "Know", "definitions, concepts"], ["structure", "Structure", "steps, proformas"],
@@ -878,7 +876,7 @@ window.StudyCore = StudyCore;
       COINS ? partPotEl(b, c) : "",
       ...stageBoard(b, c),
       // Memory Palace is Sora personal's: the websites don't carry it
-      el("div", { class: "row sq-foot" }, btn(`← ${partsName(b)}`, home, false, "link"), FRIENDS ? "" : btn("Store a list in Memory Palace", () => (location.href = "/memory-palace/"), false, "link")));
+      el("div", { class: "row sq-foot" }, btn(`← ${partsName(b)}`, home, false, "link"), ""));
   }
 
   // an explanation laid out in parts: "Rule: … Applied: … Common mistake: …" or "Step 1 (…): …" each on its own line

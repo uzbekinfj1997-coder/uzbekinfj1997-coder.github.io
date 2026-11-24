@@ -234,7 +234,42 @@ const StudyCore = (() => {
     return true;
   }
 
-  return { hardParts, hardOk, canonUnits, noteCard, mixPool, mixDraw, MIX_TRACKS, kindOf, answerOf, palaceList, isStem, sentence, plan, planToday, planNext, dayOf, DAY, PASS, KEY, IMPORT_KEY, INTERVALS, RANKS, books, load, save, startOfDay, shuffle, questions, points, stars, record, passed, due, rank };
+  // ---------- card-level reviews (Robiyaxon's app, step 3, 24.11.2026): each card of a passed stage has its own date ----------
+  // gaps 1 → 3 → 7 → 16 → 35 → 75 days. A card moves up only when it's due (a replay the same evening moves nothing): a right pick one
+  // step, a right typed answer two (the user's OK, 24.11.2026); a miss sends it back to tomorrow, and a card missed 3 times or more
+  // stays at 16 days at most. A card answered for the first time starts at 1 day.
+  const LADDER = [1, 3, 7, 16, 35, 75];
+  function cardStep(rec, ok, typed, now = Date.now()) {
+    const due = !rec || rec.due == null || rec.due <= now, r = rec ? { ...rec } : { s: -1, n: 0 };
+    if (!ok) { r.s = 0; r.n = (r.n || 0) + 1; }
+    else if (!rec) r.s = 0;
+    else if (!due) return { ...rec, last: now };
+    else r.s = Math.min(LADDER.length - 1, r.s + (typed ? 2 : 1), (r.n || 0) >= 3 ? 3 : LADDER.length - 1);
+    r.due = startOfDay(now) + LADDER[Math.max(0, r.s)] * DAY; r.last = now;
+    return r;
+  }
+  // the stages' own schedules carried over once to their cards (a missed card one step lower); after that, and on every load, the stages'
+  // and final rounds' own dates are cleared, so only the cards come back
+  function migrateCards(prog, book, now = Date.now()) {
+    const cards = prog.cards || (prog.cards = {});
+    if (!prog.cardsV) {
+      const tomorrow = startOfDay(now) + DAY;
+      for (const c of book.chapters) for (const l of c.lists) {
+        const st = prog.lists[l.id];
+        if (!st || !((st.best || 0) >= PASS)) continue;
+        const s0 = Math.max(0, st.step ?? 0), due0 = st.due ?? tomorrow;
+        l.items.forEach((_, k) => {
+          const cid = `${l.id}#${k}`, missed = !!prog.miss?.[cid];
+          if (!cards[cid]) cards[cid] = { s: missed ? Math.max(0, s0 - 1) : s0, due: missed ? Math.min(due0, tomorrow) : due0, n: 0, last: st.last ?? null };
+        });
+      }
+      prog.cardsV = 1;
+    }
+    for (const id of Object.keys(prog.lists)) if (prog.lists[id].due != null) prog.lists[id].due = null;
+    return prog;
+  }
+
+  return { LADDER, cardStep, migrateCards, hardParts, hardOk, canonUnits, noteCard, mixPool, mixDraw, MIX_TRACKS, kindOf, answerOf, palaceList, isStem, sentence, plan, planToday, planNext, dayOf, DAY, PASS, KEY, IMPORT_KEY, INTERVALS, RANKS, books, load, save, startOfDay, shuffle, questions, points, stars, record, passed, due, rank };
 })();
 window.StudyCore = StudyCore;
 
@@ -255,7 +290,7 @@ window.StudyCore = StudyCore;
 
   const settings = setupSettings(root, "study-quest", [
     { key: "answer", label: tr("How you answer"), type: "choice", default: window.SORA_STATIC ? "choice" : "recall", options: [["recall", tr("Recall: type it first")], ["choice", tr("Pick from choices")]],
-      help: tr("A real recall moves the review schedule on; picking only keeps a stage fresh") },
+      help: PLUS ? tr("Each card comes back on its own schedule: a right pick moves it one step on, a right typed answer two") : tr("A real recall moves the review schedule on; picking only keeps a stage fresh") },
     { key: "dir", label: tr("Questions (when picking)"), type: "choice", default: "mixed", options: [["mixed", tr("Mixed")], ["key", tr("Term → meaning")], ["text", tr("Meaning → term")]] },
     { key: "time", label: tr("Time per question"), type: "choice", default: 30, options: [[0, tr("No clock")], [45, tr("{n} s", { n: 45 })], [30, tr("{n} s", { n: 30 })], [20, tr("{n} s", { n: 20 })], [10, tr("{n} s", { n: 10 })]] },
     { key: "hearts", label: tr("Hearts"), type: "choice", default: 3, options: [[0, tr("Unlimited")], [3, "3"], [5, "5"]] },
@@ -678,6 +713,7 @@ window.StudyCore = StudyCore;
       el("span", { class: "sq-revgo" }, dueIds.length ? tr("Today ▶") : "▶"));
   }
   function reviews(b) {
+    if (PLUS && COINS) return cardReviews(b);
     screen = "reviews";
     const lists = allLists(b), due = C.due(prog, lists.map((l) => l.id)).map((id) => lists.find((l) => l.id === id));
     const later = lists.filter((l) => C.passed(prog, l.id) && prog.lists[l.id].due > Date.now()).sort((x, y) => prog.lists[x.id].due - prog.lists[y.id].due).slice(0, 6);
@@ -724,12 +760,13 @@ window.StudyCore = StudyCore;
   // of reviews in a row +20, 30 days +100
   function roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) {
     let n = log.filter((x) => x.ok).reduce((s, x) => s + SC.weight(C.kindOf(x.item), typed), 0) * SC.clockFactor(Number(S.time));
-    const review = !mix && wasDue;
+    const review = (!mix && wasDue) || !!mix?.review;
     if (review) n *= 2; else if (!mix && wasPassed) n *= 0.25;
-    const tag = `${b.id}:${id}`, where = mix ? tr("Mixed quiz") : l ? l.name : tr("Boss round"), out = [];
+    const tag = `${b.id}:${id}`, where = mix?.review ? tr("Reviews") : mix ? tr("Mixed quiz") : l ? l.name : tr("Boss round"), out = [];
     out.push({ id: `${tag}:${Date.now()}`, n: Math.round(n), why: `${where} · ${Math.round(score * 100)} %${review ? ` · ${tr("review")}` : ""}`, k: review ? "review" : "study" });
     if (review && score >= C.PASS) {        // a review done (passed): 5 more, and a day of reviews towards the days in a row
-      out.push({ id: `${tag}:ontime:${dayKey()}`, n: 5, why: tr("Review on time: {stage}", { stage: where }), k: "review" });
+      // a stage's once a day; each review round of cards its own (the server pays an id once)
+      out.push({ id: `${tag}:ontime:${dayKey()}${mix?.review ? `:${Date.now()}` : ""}`, n: 5, why: mix?.review ? tr("A review round on time") : tr("Review on time: {stage}", { stage: where }), k: "review" });
       prog.reviewDays = [...new Set([...(prog.reviewDays || []), dayKey()])].slice(-60);
       const streak = reviewStreak();
       prog.reviewsOnTime = (prog.reviewsOnTime || 0) + 1; prog.bestReviewRun = Math.max(prog.bestReviewRun || 0, streak);      // for the medals
@@ -742,24 +779,75 @@ window.StudyCore = StudyCore;
     return out.filter((e) => e.n > 0);
   }
 
+  // ---------- card-level reviews (Robiyaxon's app, step 3): due cards in rounds of 12, across chapters ----------
+  const REVIEW = "review", ROUND = 12, reviewId = (b) => `${b.id}:review`;
+  // the stages' schedules carried over to their cards once; a problem here must never cost Home
+  // (saved only when there is progress to carry over, so an untouched browser still takes older progress in, as load() does)
+  function migrate(b) {
+    try { if (Object.keys(prog.lists || {}).length) { C.migrateCards(prog, b); commit(); } else prog.cardsV = 1; } catch (e) { console.warn("card schedule", e); }
+  }
+  function reviewRound(b) {
+    const drawn = SC.dueCards(b, prog).slice(0, ROUND);
+    if (!drawn.length) return cardReviews(b);
+    const pool = [...new Set(drawn.flatMap((x) => x.l.items))];        // wrong options from the cards' own stages
+    quiz(b, null, null, { items: drawn.map((x) => x.it), pool, review: true, drawn });
+  }
+  function nextCardDate(b) {
+    let soonest = null;
+    for (const c of b.chapters) for (const l of c.lists) if (C.passed(prog, l.id)) l.items.forEach((_, k) => { const r = prog.cards?.[`${l.id}#${k}`]; if (r?.due > Date.now() && (!soonest || r.due < soonest)) soonest = r.due; });
+    return soonest;
+  }
+  function cardTile(b) {
+    const due = SC.dueCards(b, prog), soonest = due.length ? null : nextCardDate(b), anyPassed = allLists(b).some((l) => C.passed(prog, l.id));
+    const status = due.length ? tr("{n} {cards} due today · double coins", { n: due.length, cards: tr.n(due.length, "card", "cards") })
+      : anyPassed ? (soonest ? tr("Nothing due · next {when}", { when: when(soonest) }) : tr("Nothing due")) : tr("Pass a stage, and its cards come back here");
+    const worth = due.length ? SC.cardsPot(due.slice(0, ROUND), potOpts()) + 5 : 0;
+    return el("button", { type: "button", class: `sq-revtile ${due.length ? "due" : ""}`.trim(), onclick: () => cardReviews(b), "aria-label": `${tr("Reviews")}. ${status}` },
+      el("span", { class: "sq-revsign" }, "🔁"), el("span", { class: "sq-revtext" }, el("b", {}, tr("Reviews")), el("small", {}, status)),
+      worth ? el("span", { class: "sq-revpot" }, el("span", { class: "coin-pot big" }, `🪙 +${num(worth)}`), el("span", { class: "coin-tag hot" }, tr("×2 today"))) : "",
+      el("span", { class: "sq-revgo" }, due.length ? tr("Today ▶") : "▶"));
+  }
+  function cardReviews(b) {
+    screen = "reviews"; here = { b };
+    const due = SC.dueCards(b, prog), streak = reviewStreak(), worth = due.length ? SC.cardsPot(due.slice(0, ROUND), potOpts()) + 5 : 0;
+    // the next 7 days: how many cards come back each day
+    const days = new Map();
+    for (const c of b.chapters) for (const l of c.lists) if (C.passed(prog, l.id)) l.items.forEach((_, k) => {
+      const r = prog.cards?.[`${l.id}#${k}`], d = r?.due > Date.now() ? C.startOfDay(r.due) : null;
+      if (d && d - C.startOfDay(Date.now()) <= 7 * C.DAY) days.set(d, (days.get(d) || 0) + 1);
+    });
+    const later = [...days.entries()].sort((x, y) => x[0] - y[0]);
+    view(head(tr("Reviews"), tr("Each card comes back on its own: after 1, 3, 7, 16, 35 and 75 days while you keep getting it right, and tomorrow when you miss it.")),
+      el("div", { class: "sq-dash" },
+        el("section", { class: "sq-box sq-due sq-wide" }, el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign" }, "🔁"), el("small", {}, tr("Due today"))),
+          el("b", { class: "sq-box-title" }, due.length ? tr("{n} {cards} to review", { n: due.length, cards: tr.n(due.length, "card", "cards") }) : tr("Nothing due today")),
+          worth ? el("div", { class: "sq-pot" }, el("span", { class: "coin-pot huge" }, `🪙 +${num(worth)}`), el("span", { class: "coin-tag hot" }, tr("×2 today"))) : "",
+          el("p", { class: "hint" }, tr("Rounds of {n} cards, the longest waiting first. Reviews earn double coins. Days in a row: {d}.", { n: ROUND, d: streak })),
+          due.length ? el("div", { class: "row sq-act" }, btn(tr("Start a round ▶"), () => { reviewQueue = []; reviewRound(b); }, true)) : ""),
+        later.length ? el("section", { class: "sq-box sq-asked" }, el("div", { class: "sq-box-head" }, el("span", { class: "sq-sign" }, "📅"), el("small", {}, tr("Coming up"))),
+          el("ul", { class: "sq-revlist" }, ...later.map(([d, n]) => el("li", {}, el("span", {}, when(d)), el("small", { class: "hint" }, `${n} ${tr.n(n, "card", "cards")}`))))) : ""),
+      el("div", { class: "row sq-foot" }, btn(tr("← Chapters"), home, false, "link")));
+  }
+
   // ---------- Today's session (Robiyaxon's app): a goal of questions a day, the reviews due and the next stage, started with one button ----------
   const doneToday = () => (prog.day?.d === dayKey() ? prog.day.n : 0);
   function noteToday(n) { const d = dayKey(); prog.day = { d, n: (prog.day?.d === d ? prog.day.n : 0) + n }; }
   // the stages for today: the reviews due, oldest first, until the goal's questions are covered, then the next stage that's open
   function todayPlan(b) {
     const lists = allLists(b), goal = Number(S.goal) || 25, done = doneToday(), need = Math.max(goal - done, 10);
-    const due = C.due(prog, lists.map((l) => l.id)).map((id) => lists.find((l) => l.id === id)).sort((x, y) => prog.lists[x.id].due - prog.lists[y.id].due);
-    const picks = [];
-    let n = 0;
-    for (const l of due) { if (n >= need) break; picks.push(l); n += l.items.length; }
+    // the cards due, in rounds of 12 (step 3); then the next stage that's open
+    const due = COINS ? SC.dueCards(b, prog) : [], rounds = Math.min(Math.ceil(due.length / ROUND), Math.ceil(need / ROUND));
+    const picks = Array.from({ length: rounds }, () => REVIEW);
+    let n = Math.min(due.length, rounds * ROUND);
     const ns = nextStage(b)?.next;
     const from = ns ? lists.findIndex((l) => l.id === ns.id) : -1;
     const fresh = from < 0 ? null : [...lists.slice(from), ...lists.slice(0, from)].find((l) => !C.passed(prog, l.id) && open(l.chapter, l.chapter.lists.findIndex((x) => x.id === l.id)));
     if (fresh && n < need) { picks.push(fresh); n += fresh.items.length; }
-    return { goal, done, due, fresh: picks.includes(fresh) ? fresh : null, picks, questions: n };
+    return { goal, done, due, reviewing: Math.min(due.length, rounds * ROUND), fresh: picks.includes(fresh) ? fresh : null, picks, questions: n };
   }
   // one stage of the session: a stage never played starts with its cards; anything else is a round
   function playSession(b) {
+    if (session[0] === REVIEW) { if (COINS && SC.dueCards(b, prog).length) return reviewRound(b); session.shift(); return playSession(b); }
     const l = allLists(b).find((x) => x.id === session[0]);
     if (!l) { session = []; return home(); }
     if (!prog.lists[l.id]?.plays) cards(b, l.chapter, l); else quiz(b, l.chapter, l);
@@ -775,12 +863,11 @@ window.StudyCore = StudyCore;
   }
   function sessionCard(b) {
     const p = todayPlan(b), met = p.done >= p.goal, mins = Math.max(1, Math.round((p.questions * 20) / 60));
-    const reviewsN = p.picks.filter((l) => l !== p.fresh).length;
     const lines = [
-      reviewsN ? el("li", { class: "rev" }, tr("Review {n} {stages} due", { n: reviewsN, stages: tr.n(reviewsN, "stage", "stages") }), p.due.length > reviewsN ? el("small", {}, tr(" (the rest next time)")) : "") : "",
+      p.reviewing ? el("li", { class: "rev" }, tr("Review {n} {cards} due", { n: p.reviewing, cards: tr.n(p.reviewing, "card", "cards") }), p.due.length > p.reviewing ? el("small", {}, tr(" (the rest next time)")) : "") : "",
       p.fresh ? el("li", { class: "new" }, tr("New: {stage}", { stage: p.fresh.name })) : "",
     ].filter(Boolean);
-    const go = () => { session = p.picks.map((l) => l.id); inSession = true; playSession(b); };
+    const go = () => { session = p.picks.map((l) => (l === REVIEW ? REVIEW : l.id)); inSession = true; playSession(b); };
     return el("section", { class: `sq-today ${met ? "met" : ""}`.trim() },
       ring(p.done, p.goal),
       el("div", { class: "sq-todaytext" },
@@ -794,8 +881,9 @@ window.StudyCore = StudyCore;
     screen = "home"; books = C.books(); reviewQueue = []; session = []; inSession = false;        // "Review all due" lasts while its Next review buttons are followed
     const b = book(); bookId = b?.id;
     if (!b) return view(head("No books yet", "There are no books here yet."));
+    if (PLUS && COINS) migrate(b);
     const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids), o = COINS ? potOpts() : null;
-    if (COINS) markClear(lists, dueIds);
+    if (COINS) markClear(lists, PLUS ? SC.dueCards(b, prog) : dueIds);
     const streak = prog.streak.last >= C.startOfDay(Date.now()) - C.DAY ? prog.streak.days : 0;
     const one = onePart(b);     // a book in one part (Surah Numbers): its stages on Home, no chapters
     const pct = r.next ? Math.round(((prog.xp - r.from) / (r.next[0] - r.from)) * 100) : 100;
@@ -822,7 +910,7 @@ window.StudyCore = StudyCore;
       // the mixed quiz needs two chapters, so a book with one so far doesn't show it; the reviews are the Reviews bar's, but for a book
       // with a study plan (SBR), whose card keeps to the plan's reviews a day
       dash(todayCard(b), markedCard(b), dueIds.length && (!COINS || b.plan) ? dueCard(b, lists, dueIds) : "", made >= 2 ? mixCard(b) : "", writtenCard(b), askedCard(b)),
-      COINS ? reviewTile(b, lists, dueIds) : "",
+      COINS ? (PLUS ? cardTile(b) : reviewTile(b, lists, dueIds)) : "",
       ...(one ? [el("div", { class: "sq-chapters-head" }, el("h3", {}, tr("Stages"))), ...stageBoard(b, b.chapters[0])] : [
       el("div", { class: "sq-chapters-head" }, el("h3", {}, partsName(b)),
         el("div", { class: "sq-legend" }, el("span", { class: "done" }, tr("✓ Done")), el("span", { class: "started" }, tr("In progress")), el("span", { class: "new" }, tr("Not started")))),
@@ -1099,14 +1187,15 @@ window.StudyCore = StudyCore;
     const typed = S.answer === "recall";
     const qs = C.questions(items, pool, typed ? "key" : S.dir, Math.random, l || mix ? 0 : Math.min(15, pool.length));
     // typing takes longer than picking: twice the time per question
-    const base = l ? Number(S.time) : Math.round((Number(S.time) || 30) * 0.7), limit = typed ? base * 2 : base, id = mix ? mixId(b) : l ? l.id : bossId(b, c);
+    // a review round keeps a stage's clock (and none, if that's the setting)
+    const base = l || mix?.review ? Number(S.time) : Math.round((Number(S.time) || 30) * 0.7), limit = typed ? base * 2 : base, id = mix?.review ? reviewId(b) : mix ? mixId(b) : l ? l.id : bossId(b, c);
     const from = (it) => (mix ? el("p", { class: "hint sq-from" }, tr("From {where}", { where: whereOf(b, it) })) : "");
     const leave = () => (mix ? home() : chapter(b, c));
     let i = 0, hearts = Number(S.hearts), combo = 0, best = 0, gained = 0, left = limit;
     const right = [], missed = [], log = [];
     // the coins: what the round can give (as its card showed), and the answers' share of it counted as they come
     const o = COINS ? potOpts() : null;
-    const pot0 = !COINS ? null : mix ? mixPot(C.mixPool(b, prog)) : l ? SC.stagePot(l, prog.lists[l.id], o) : SC.bossPot(b, c, prog, o) || { total: 0, extras: [], mult: 1 };
+    const pot0 = !COINS ? null : mix?.review ? { total: SC.cardsPot(mix.drawn, o) + 5, extras: [], mult: 2, due: true } : mix ? mixPot(C.mixPool(b, prog)) : l ? SC.stagePot(l, prog.lists[l.id], o) : SC.bossPot(b, c, prog, o) || { total: 0, extras: [], mult: 1 };
     let live = 0;
     const coinOf = (it) => (COINS ? SC.weight(C.kindOf(it), typed) * o.factor * (pot0.mult ?? 1) : 0);
     const bar = el("div", { class: "sq-hud" }), body = el("div");
@@ -1162,13 +1251,13 @@ window.StudyCore = StudyCore;
       body.append(el("div", { class: "sq-why" }, el("b", {}, tr(value === null ? "Time's up." : value ? "Not quite." : "Here it is.")), from(q.item),
         value ? el("p", { class: "hint" }, tr("You wrote: {value}", { value })) : "",
         el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
-        el("div", { class: "row" }, btn(tr("Next →"), () => settle(false, value), true), value ? btn(tr("I was right after all"), () => settle(true, value)) : "",
+        el("div", { class: "row" }, btn(tr("Next →"), () => settle(false, value), true), value ? btn(tr("I was right after all"), () => settle(true, value, true)) : "",
           askButton(q.item, whereOf(b, q.item), value || "", false))));
       if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });
     }
-    function settle(ok, value) {
+    function settle(ok, value, self = false) {      // self: "I was right after all", which moves a card one step, not two
       const q = qs[i];
-      right.push(ok); log.push({ item: q.item, ok, given: value ?? "" });
+      right.push(ok); log.push({ item: q.item, ok, given: value ?? "", self });
       if (ok) { combo++; best = Math.max(best, combo); gained += C.points(left, limit, combo - 1); live += coinOf(q.item); }
       else { combo = 0; missed.push(q.item); if (hearts) hearts--; }
       hud();
@@ -1213,24 +1302,36 @@ window.StudyCore = StudyCore;
     }
     function finish() {
       screen = "result";
-      const score = right.filter(Boolean).length / qs.length, s = C.stars(score);
+      // a short stage (4 or 5 questions) passes with one miss, so one slip doesn't mean playing it all again (Robiyaxon's app)
+      const raw = right.filter(Boolean).length / qs.length, slips = right.filter((x) => !x).length;
+      const score = PLUS && l && !mix && qs.length <= 5 && right.length === qs.length && slips <= 1 ? Math.max(raw, C.PASS) : raw, s = C.stars(score);
       // what the round changes, for its coins: was the stage passed or due before it (a review: due, and not played yet today, so a
       // review missed and played again counts as an ordinary round), was its chapter done
       const prev = prog.lists[id] ? { ...prog.lists[id] } : null, wasPassed = C.passed(prog, id);
-      const wasDue = prev?.due != null && prev.due <= Date.now() && !(prev.last >= C.startOfDay(Date.now()));
+      const wasDue = mix?.review ? true : PLUS ? false : prev?.due != null && prev.due <= Date.now() && !(prev.last >= C.startOfDay(Date.now()));
       const partWasDone = !!c && c.lists.every((x) => C.passed(prog, x.id));
       // typed recall counts fully; so do stages of ordering, comparing, traps and scenarios (they test understanding)
       const mode = typed || items.every((it) => C.kindOf(it) !== "sentence") ? "recall" : "choice", before = C.rank(prog.xp).name, rec = C.record(prog, id, score, gained, Date.now(), mode);
       const earned = COINS ? roundCoins({ b, c, l, mix, log, typed, prev, wasPassed, wasDue, partWasDone, score, id, rec }) : [];
       if (earned.length) SoraCoins.earn(earned);
       const coins = earned.reduce((s2, e) => s2 + e.n, 0);
+      // each answered card of a passed stage moves on its own schedule (step 3); the stages' own dates stay cleared
+      if (PLUS) {
+        const now = Date.now(), cards = prog.cards || (prog.cards = {});
+        for (const x of log) {
+          const cid = cardId(b, x.item);
+          if (cid && C.passed(prog, cid.split("#")[0])) cards[cid] = C.cardStep(cards[cid], x.ok, typed && C.kindOf(x.item) === "sentence" && !x.self, now);
+        }
+        for (const k of Object.keys(prog.lists)) prog.lists[k].due = null;
+      }
       reviewQueue = reviewQueue.filter((x) => x !== id && C.due(prog, [x]).length);      // what's still due
       if (PLUS) {
-        noteToday(log.length); session = session.filter((x) => x !== id);
+        noteToday(log.length);
+        { const k = session.indexOf(mix?.review ? REVIEW : id); if (k >= 0) session.splice(k, 1); }     // one: a session may hold several review rounds
         // the session's stages played and the goal not reached yet: it goes on with what's next (a stage missed is played again)
-        if (inSession && !session.length && doneToday() < (Number(S.goal) || 25)) session = todayPlan(b).picks.map((x) => x.id);
+        if (inSession && !session.length && doneToday() < (Number(S.goal) || 25)) session = todayPlan(b).picks.map((x) => (x === REVIEW ? REVIEW : x.id));
       }
-      const sessionNext = PLUS && session.length ? allLists(b).find((x) => x.id === session[0]) : null;
+      const sessionNext = PLUS && session.length ? (session[0] === REVIEW ? { review: true } : allLists(b).find((x) => x.id === session[0])) : null;
       const nextReview = l && reviewQueue.length ? allLists(b).find((x) => x.id === reviewQueue[0]) : null;
       for (const x of log) { const cid = cardId(b, x.item); if (cid) C.noteCard(prog, cid, x.ok); }
       commit();
@@ -1240,8 +1341,11 @@ window.StudyCore = StudyCore;
       // what this task still has in it now (shown on the result: the three stars still to get, say)
       const potAfter = !COINS ? null : mix ? null : l ? SC.stagePot(l, prog.lists[l.id], potOpts()) : SC.bossPot(b, c, prog, potOpts());
       const after = C.rank(prog.xp).name, outOfHearts = right.length < qs.length;
-      view(head(`${Math.round(score * 100)} %${outOfHearts ? tr(" (out of hearts)") : ""}`,
-        mix ? tr(missed.length ? "The missed cards will come up more often in the next mixed quiz." : "A clean sweep across chapters.")
+      const moreDue = PLUS && mix?.review && !sessionNext && COINS ? SC.dueCards(b, prog).length : 0;
+      view(head(`${Math.round(raw * 100)} %${outOfHearts ? tr(" (out of hearts)") : ""}`,
+        mix?.review ? tr(missed.length ? "The cards you got right come back later; the ones you missed, tomorrow." : "All right: each card comes back later.")
+        : PLUS && !mix && score >= C.PASS ? tr("Passed. Each card now comes back on its own schedule; the ones you missed, tomorrow.")
+        : mix ? tr(missed.length ? "The missed cards will come up more often in the next mixed quiz." : "A clean sweep across chapters.")
           : score < C.PASS ? tr("Below 80 %: look at the missed ones and play again.")
           : mode === "recall" ? tr("Recalled. Next review {when}; the gaps grow as you keep remembering.", { when: when(rec.due) })
           : tr("Passed by picking, which keeps it fresh: next review {when}. Play in Recall mode to move it to a longer gap.", { when: when(rec.due) })),
@@ -1249,6 +1353,7 @@ window.StudyCore = StudyCore;
           after !== before ? el("b", { class: "sq-up" }, tr("New rank: {rank}!", { rank: tr(after) })) : ""),
         COINS ? coinResult(coins, pot0, potAfter, earned) : "",
         nextReview ? el("div", { class: "row" }, btn(tr("Next review ▶ ({n} left)", { n: reviewQueue.length }), () => quiz(b, nextReview.chapter, nextReview), true)) : "",
+        moreDue ? el("div", { class: "row" }, btn(tr("Next round ▶ ({n} {cards} due)", { n: moreDue, cards: tr.n(moreDue, "card", "cards") }), () => reviewRound(b), true)) : "",
         PLUS ? el("div", { class: "row sq-sessnext" }, ring(doneToday(), Number(S.goal) || 25),
           sessionNext ? btn(tr("Next in the session ▶ ({n} left)", { n: session.length }), () => playSession(b), true)
             : el("span", { class: "hint" }, doneToday() >= (Number(S.goal) || 25) ? tr("Today's goal reached. Well done!") : tr("{left} more {questions} to today's goal", { left: (Number(S.goal) || 25) - doneToday(), questions: tr.n((Number(S.goal) || 25) - doneToday(), "question", "questions") }))) : "",
@@ -1258,7 +1363,8 @@ window.StudyCore = StudyCore;
             el("b", {}, `${x.ok ? "✓" : "✗"} ${C.sentence(shown(x.item))}`), !x.ok && x.given ? el("div", { class: "hint" }, tr("Your answer: {answer}", { answer: x.given })) : "",
             !x.ok && x.item.why ? whyEl(x.item.why) : "", nowEl(x.item), !x.ok && x.item.image ? el("div", { class: "hint" }, tr("Picture: {image}", { image: x.item.image })) : "",
             askButton(x.item, whereOf(b, x.item), x.given, x.ok))))) : "",
-        mix ? el("div", { class: "row" }, btn(tr("Another mixed quiz"), () => mixBoss(b), true), btn(tr("Chapters"), home, false, "link"))
+        mix?.review ? el("div", { class: "row" }, btn(tr("Reviews"), () => reviews(b)), btn(tr("Chapters"), home, false, "link"))
+          : mix ? el("div", { class: "row" }, btn(tr("Another mixed quiz"), () => mixBoss(b), true), btn(tr("Chapters"), home, false, "link"))
           : onePart(b) ? el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(tr("Stages"), home, score >= C.PASS))
           : el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(partName(b, c), () => chapter(b, c), score >= C.PASS), btn(partsName(b), home, false, "link")));
     }
@@ -1274,8 +1380,9 @@ window.StudyCore = StudyCore;
         full ? el("span", { class: "sq-burst", "aria-hidden": "true" }, ...Array.from({ length: 10 }, (_, k) => el("i", { style: `--a:${k * 36}deg;--d:${(k % 3) * 80}ms` }, "🪙"))) : "");
     }
     const one = !mix && onePart(b), sec = !mix && bySection(b);
-    view(head(mix ? tr("Mixed quiz") : l ? l.name : one ? tr("Boss round") : sec ? tr("Boss round: {title}", { title: c.title }) : tr("Boss round: chapter {n}", { n: c.n }),
-      mix ? tr("Traps, comparisons and scenarios from the chapters you have passed. The chapter is shown after you answer.") : l ? "" : tr(one ? "Questions from every stage." : sec ? "Questions from every stage of the section." : "Questions from every stage of the chapter.")),
+    view(head(mix?.review ? tr("Reviews") : mix ? tr("Mixed quiz") : l ? l.name : one ? tr("Boss round") : sec ? tr("Boss round: {title}", { title: c.title }) : tr("Boss round: chapter {n}", { n: c.n }),
+      mix?.review ? tr("Cards due today, from every chapter you have passed. The chapter is shown after you answer.")
+        : mix ? tr("Traps, comparisons and scenarios from the chapters you have passed. The chapter is shown after you answer.") : l ? "" : tr(one ? "Questions from every stage." : sec ? "Questions from every stage of the section." : "Questions from every stage of the chapter.")),
       el("div", { class: "sq-hudrow" }, window.SoraNav ? SoraNav.exitButton("inline") : "", bar), body,
       el("div", { class: "row sq-foot" }, btn(tr("Give up"), leave, false, "link")));
     ask();

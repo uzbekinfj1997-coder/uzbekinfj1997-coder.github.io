@@ -624,4 +624,22 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "Saved. It will be sent when the internet is back.": "Сохранено. Отправится, когда появится интернет.",
   "Sent. Thank you!": "Отправлено. Спасибо!",
   "⚠ Today's data": "⚠ Современные данные",
+  // step 3: card-level reviews
+  "Each card comes back on its own schedule: a right pick moves it one step on, a right typed answer two":
+    "Каждая карточка возвращается по своему расписанию: верный выбор продвигает её на шаг, верный набранный ответ — на два",
+  "Review {n} {cards} due": "Повторить: {n} {cards}",
+  "The cards you got right come back later; the ones you missed, tomorrow.": "Верные карточки вернутся позже, а ошибки — завтра.",
+  "All right: each card comes back later.": "Всё верно: каждая карточка вернётся позже.",
+  "Passed. Each card now comes back on its own schedule; the ones you missed, tomorrow.": "Пройдено. Теперь каждая карточка вернётся по своему расписанию, а ошибки — завтра.",
+  "Next round ▶ ({n} {cards} due)": "Следующий раунд ▶ (на повторение: {n} {cards})",
+  "Cards due today, from every chapter you have passed. The chapter is shown after you answer.": "Карточки на сегодня из всех пройденных глав. Глава видна после ответа.",
+  "{n} {cards} due today · double coins": "На сегодня: {n} {cards} · двойные монеты",
+  "Pass a stage, and its cards come back here": "Пройдите этап, и его карточки вернутся сюда",
+  "Each card comes back on its own: after 1, 3, 7, 16, 35 and 75 days while you keep getting it right, and tomorrow when you miss it.":
+    "Каждая карточка возвращается сама: через 1, 3, 7, 16, 35 и 75 дней, пока вы отвечаете верно, и на следующий день после ошибки.",
+  "{n} {cards} to review": "На повторение: {n} {cards}",
+  "Rounds of {n} cards, the longest waiting first. Reviews earn double coins. Days in a row: {d}.":
+    "Раунды по {n} карточек, сначала те, что ждут дольше. За повторение — двойные монеты. Дней подряд: {d}.",
+  "Start a round ▶": "Начать раунд ▶",
+  "A review round on time": "Раунд повторения вовремя",
 } });

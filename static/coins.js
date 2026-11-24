@@ -150,6 +150,19 @@ const SoraCoins = (() => {
     const s = { answer: window.SORA_STATIC ? "choice" : "recall", time: 30, ...read("sora.settings.study-quest", {}) };
     return { typed: s.answer === "recall", factor: clockFactor(Number(s.time)), now: Date.now(), today: startOfDay(Date.now()) };
   }
+  // card-level reviews (Robiyaxon's app, step 3): once a subject's progress has card dates (prog.cardsV), what's due is its cards:
+  // every card of a passed stage whose date has come, or that has no date yet (a card added later)
+  function dueCards(b, prog, now = Date.now()) {
+    const out = [];
+    if (!prog?.cardsV) return out;
+    for (const c of b.chapters) for (const l of c.lists) {
+      if (!passed(prog.lists?.[l.id])) continue;
+      l.items.forEach((it, k) => { const r = prog.cards?.[`${l.id}#${k}`]; if (!r || r.due == null || r.due <= now) out.push({ it, l, c, k, cid: `${l.id}#${k}`, due: r?.due ?? 0 }); });
+    }
+    return out.sort((x, y) => x.due - y.due);
+  }
+  // what the due cards can give: each answer by its kind and the clock, doubled (a review on its day)
+  const cardsPot = (cards, o = playing()) => Math.round(cards.reduce((s, x) => s + weight(kindOf(x.it), o.typed), 0) * o.factor * 2);
   // a review: due, and not played yet today (a review missed and played again counts as an ordinary round)
   const isDue = (p, o) => p?.due != null && p.due <= o.now && !(p.last >= o.today);
   function stagePot(l, p, o = playing()) {
@@ -186,10 +199,11 @@ const SoraCoins = (() => {
     const lists = parts.flatMap((c) => c.lists), bosses = parts.filter((c) => c.lists.length > 1);
     const finished = lists.length > 0 && lists.every((l) => passed(prog.lists?.[l.id])) && bosses.every((c) => passed(prog.lists?.[`${b.id}:boss:${c.n}`]));
     const once = pots.reduce((s, x) => s + x.once, 0) + 250, got = pots.reduce((s, x) => s + x.got, 0) + (finished ? 250 : 0);
-    return { id: b.id, total: pots.reduce((s, x) => s + x.total, 0) + (finished ? 0 : 250), today: pots.reduce((s, x) => s + x.today, 0),
+    const cardsDue = prog.cardsV ? dueCards(b, prog, o.now) : null, cardsWorth = cardsDue ? cardsPot(cardsDue, o) : 0;
+    return { id: b.id, total: pots.reduce((s, x) => s + x.total, 0) + (finished ? 0 : 250) + cardsWorth, today: pots.reduce((s, x) => s + x.today, 0) + cardsWorth,
       once, got, stages: lists.length, passed: lists.filter((l) => passed(prog.lists?.[l.id])).length,
       stars3: lists.filter((l) => (prog.lists?.[l.id]?.stars || 0) >= 3).length, parts: parts.length, partsDone: pots.filter((x) => x.done).length,
-      due: lists.filter((l) => isDue(prog.lists?.[l.id], o)).length, finished, rounds: Object.values(prog.lists || {}).reduce((s, p) => s + (p.plays || 0), 0),
+      due: cardsDue ? cardsDue.length : lists.filter((l) => isDue(prog.lists?.[l.id], o)).length, cardsDue: cardsDue ? cardsDue.length : null, finished, rounds: Object.values(prog.lists || {}).reduce((s, p) => s + (p.plays || 0), 0),
       reviewsOnTime: prog.reviewsOnTime || 0, bestReviewRun: prog.bestReviewRun || 0, days: prog.streak?.days || 0 };
   }
   // a book's progress as Study Quest keeps it on this device: under its own key, or (a website's subject played before the subjects
@@ -363,7 +377,7 @@ const SoraCoins = (() => {
     return left.length;
   }
   if (read(REPORT_KEY, []).length) { setTimeout(() => report(), 2000); window.addEventListener("online", () => report()); }
-  return { report, earn, flush, refresh, balance, state, tierOf, TIERS, ICON, weight, clockFactor, duelFactor, playing, stagePot, bossPot, chapterPot,
+  return { dueCards, cardsPot, report, earn, flush, refresh, balance, state, tierOf, TIERS, ICON, weight, clockFactor, duelFactor, playing, stagePot, bossPot, chapterPot,
     bookSummary, noteBook, studies, progressOf, duelPot, MEDALS, LEVELS, achievements, checkAchievements, celebrate, achName, coinsOf, changed, onChange,
     fmt, link, unlink, me, weekKey, dayKey, linked: () => !!(URL && me()), server: !!URL };
 })();

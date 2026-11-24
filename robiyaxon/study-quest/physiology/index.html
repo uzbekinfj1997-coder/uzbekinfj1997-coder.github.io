@@ -397,6 +397,12 @@
   .sq-report[hidden] { display: none; }
   .sq-report textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--border-subtle, var(--line)); background: var(--bg-canvas, var(--bg-100)); color: var(--text-primary, var(--ink)); }
   .sq-report .hint:empty { display: none; }
+  /* what is known today, where the textbook (whose answer the card keeps) differs */
+  .sq-now { margin-top: 10px; padding: 10px 12px; border-left: 4px solid var(--warning, #a16207); background: var(--warning-soft, #fef3c7); border-radius: 0 10px 10px 0;
+    text-align: left; color: var(--text-primary, var(--ink)); }
+  .sq-now b { display: block; font-size: 13.5px; color: var(--warning, #a16207); margin-bottom: 2px; }
+  .sq-now p { margin: 0; font-size: 15px; line-height: 1.45; font-weight: 400; }
+  [data-theme="light"] .sq-now b { color: #854d0e; }
   /* the round in focus: a smaller title, no description, so the question and its options fit */
   body.sq-focus .sq-head h2 { font-size: 18px; margin: 0; text-transform: none; letter-spacing: 0; }
   body.sq-focus .sq-head .hint { display: none; }

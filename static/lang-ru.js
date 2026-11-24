@@ -623,4 +623,5 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "Send": "Отправить",
   "Saved. It will be sent when the internet is back.": "Сохранено. Отправится, когда появится интернет.",
   "Sent. Thank you!": "Отправлено. Спасибо!",
+  "⚠ Today's data": "⚠ Современные данные",
 } });

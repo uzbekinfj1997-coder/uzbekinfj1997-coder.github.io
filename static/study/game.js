@@ -1000,6 +1000,8 @@ window.StudyCore = StudyCore;
 
   // an explanation laid out in parts: "Rule: … Applied: … Common mistake: …" or "Step 1 (…): …" each on its own line
   const WHY_PARTS = /(?=\b(?:Reference:|P\/L category:|Users:|Step \d+(?: \([^)]*\))?:|Rule(?: of thumb[^:]*)?:|Why(?: \([^)]*\))?:|Applied:|Accounting:|Ethics:|Also:|So:|Common mistakes?:))/;
+  // what is known today, where the textbook (whose answer the card keeps) differs: a box under the answer, never asked (Robiyaxon's app)
+  const nowEl = (it) => (PLUS && it?.now ? el("div", { class: "sq-now", role: "note" }, el("b", {}, tr("⚠ Today's data")), el("p", {}, it.now)) : "");
   function whyEl(text, cls = "") {
     let parts = String(text).split(WHY_PARTS).map((x) => x.trim()).filter(Boolean);
     // "Reference: IFRS 13, para 9. The rest…": the reference is its own line even when the rest has no labelled parts
@@ -1025,7 +1027,7 @@ window.StudyCore = StudyCore;
       : k === "order" ? [el("b", { class: "k" }, it.q), el(it.any ? "ul" : "ol", { class: "sq-steps" }, ...it.steps.map((x) => el("li", {}, x))),
         it.any && it.not?.length ? el("p", { class: "hint" }, tr("Not part of it: {list}", { list: it.not.join("; ") })) : ""]
       : [el("b", { class: "k" }, it.q), el("p", { class: "t" }, C.answerOf(it))];
-    return el("div", {}, ...ans, it.why ? whyEl(it.why, "why") : "", it.image ? el("p", { class: "img" }, tr("Picture: {image}", { image: it.image })) : "");
+    return el("div", {}, ...ans, it.why ? whyEl(it.why, "why") : "", nowEl(it), it.image ? el("p", { class: "img" }, tr("Picture: {image}", { image: it.image })) : "");
   }
   function cards(b, c, l) {
     screen = "cards"; here = { b, c };
@@ -1159,7 +1161,7 @@ window.StudyCore = StudyCore;
       if (ok) return settle(true, value);
       body.append(el("div", { class: "sq-why" }, el("b", {}, tr(value === null ? "Time's up." : value ? "Not quite." : "Here it is.")), from(q.item),
         value ? el("p", { class: "hint" }, tr("You wrote: {value}", { value })) : "",
-        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
+        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
         el("div", { class: "row" }, btn(tr("Next →"), () => settle(false, value), true), value ? btn(tr("I was right after all"), () => settle(true, value)) : "",
           askButton(q.item, whereOf(b, q.item), value || "", false))));
       if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });
@@ -1174,7 +1176,7 @@ window.StudyCore = StudyCore;
       const go = () => { if (over) finish(); else { i++; ask(); } };
       if (!ok) return go();
       body.querySelector(".sq-why")?.remove();
-      body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), el("p", { class: "sentence" }, C.sentence(shown(q.item))),
+      body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), el("p", { class: "sentence" }, C.sentence(shown(q.item))), nowEl(q.item),
         btn(tr(over ? "See the result" : "Next →"), go, true)));
       body.querySelector(".sq-ok-box button").focus();
     }
@@ -1201,11 +1203,11 @@ window.StudyCore = StudyCore;
       const over = (Number(S.hearts) && hearts === 0) || i === qs.length - 1;
       const go = () => { if (over) finish(); else { i++; ask(); } };
       // a right answer moves on by itself, except where the reason is worth reading (true/false, scenarios, comparisons)
-      if (ok && q.kind === "sentence") { body.append(el("p", { class: "sq-ok" }, tr("Right!")), from(q.item)); setTimeout(() => { if (screen === "quiz" && body.isConnected) go(); }, 650); }
-      else if (ok) body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), q.item.why ? whyEl(q.item.why) : "",
+      if (ok && q.kind === "sentence" && !(PLUS && q.item.now)) { body.append(el("p", { class: "sq-ok" }, tr("Right!")), from(q.item)); setTimeout(() => { if (screen === "quiz" && body.isConnected) go(); }, 650); }
+      else if (ok) body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item),
         el("div", { class: "row" }, btn(tr(over ? "See the result" : "Next →"), go, true), askButton(q.item, whereOf(b, q.item), given, true))));
       else body.append(el("div", { class: "sq-why" }, el("b", {}, tr(k < 0 ? "Time's up." : "Not this one.")), from(q.item),
-        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
+        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
         el("div", { class: "row" }, btn(tr(over ? "See the result" : "Next →"), go, true), askButton(q.item, whereOf(b, q.item), given, false))));
       if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });     // "Next" on the screen, under the why
     }
@@ -1254,7 +1256,7 @@ window.StudyCore = StudyCore;
           FRIENDS ? "" : el("p", { class: "hint" }, "Unsure about any of them? “Ask about this” opens Telegram with the card written out; add your question and send it."),
           el("ul", { class: "sq-missed" }, ...[...log.filter((x) => !x.ok), ...log.filter((x) => x.ok)].map((x) => el("li", { class: x.ok ? "ok" : "miss" },
             el("b", {}, `${x.ok ? "✓" : "✗"} ${C.sentence(shown(x.item))}`), !x.ok && x.given ? el("div", { class: "hint" }, tr("Your answer: {answer}", { answer: x.given })) : "",
-            !x.ok && x.item.why ? whyEl(x.item.why) : "", !x.ok && x.item.image ? el("div", { class: "hint" }, tr("Picture: {image}", { image: x.item.image })) : "",
+            !x.ok && x.item.why ? whyEl(x.item.why) : "", nowEl(x.item), !x.ok && x.item.image ? el("div", { class: "hint" }, tr("Picture: {image}", { image: x.item.image })) : "",
             askButton(x.item, whereOf(b, x.item), x.given, x.ok))))) : "",
         mix ? el("div", { class: "row" }, btn(tr("Another mixed quiz"), () => mixBoss(b), true), btn(tr("Chapters"), home, false, "link"))
           : onePart(b) ? el("div", { class: "row" }, btn(tr("Play again"), () => quiz(b, c, l), score < C.PASS), btn(tr("Stages"), home, score >= C.PASS))

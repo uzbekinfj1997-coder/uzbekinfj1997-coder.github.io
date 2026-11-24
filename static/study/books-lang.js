@@ -18,8 +18,8 @@
     if (mine && typeof mine === "object" && !Array.isArray(mine)) {
       const shown = {};
       for (const [k, v] of Object.entries(mine)) {
-        o[k] = k === "why" ? withTerms(v) : plain(v);
-        if (k !== "why" && JSON.stringify(o[k]) !== JSON.stringify(withTerms(v))) shown[k] = withTerms(v);
+        o[k] = k === "why" || k === "now" ? withTerms(v) : plain(v);      // explanations (and today's data under them) keep their terms
+        if (k !== "why" && k !== "now" && JSON.stringify(o[k]) !== JSON.stringify(withTerms(v))) shown[k] = withTerms(v);
       }
       if (Object.keys(shown).length) o.withTerms = shown;
       delete o[lang];

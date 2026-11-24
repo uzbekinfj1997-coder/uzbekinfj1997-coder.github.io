@@ -344,7 +344,26 @@ const SoraCoins = (() => {
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount); else mount();
   setInterval(refresh, 30000);
   setTimeout(() => { flush(); refresh(); }, 1500);
-  return { earn, flush, refresh, balance, state, tierOf, TIERS, ICON, weight, clockFactor, duelFactor, playing, stagePot, bossPot, chapterPot,
+  // a card reported from a study app (Robiyaxon's "Сообщить об ошибке / Спросить"): to the club's server, which hands it to the bot and so
+  // to the user's Telegram; waiting on this phone until it goes. Gives how many are still waiting.
+  const REPORT_KEY = "sora.reports.waiting.v1";
+  async function report(row) {
+    let rows = read(REPORT_KEY, []);
+    if (!Array.isArray(rows)) rows = [];
+    if (row) { rows = [...rows, row].slice(-30); keep(REPORT_KEY, rows); }
+    if (!URL || !rows.length) return rows.length;
+    const left = [];
+    for (const r of rows) {
+      try {
+        const { j } = await post({ op: "report", ...r });
+        if (!j.ok) left.push(r);          // sent only once the server says so (a server without reports answers 400: it waits for it)
+      } catch { left.push(r); }
+    }
+    keep(REPORT_KEY, left);
+    return left.length;
+  }
+  if (read(REPORT_KEY, []).length) { setTimeout(() => report(), 2000); window.addEventListener("online", () => report()); }
+  return { report, earn, flush, refresh, balance, state, tierOf, TIERS, ICON, weight, clockFactor, duelFactor, playing, stagePot, bossPot, chapterPot,
     bookSummary, noteBook, studies, progressOf, duelPot, MEDALS, LEVELS, achievements, checkAchievements, celebrate, achName, coinsOf, changed, onChange,
     fmt, link, unlink, me, weekKey, dayKey, linked: () => !!(URL && me()), server: !!URL };
 })();

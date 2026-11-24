@@ -175,7 +175,66 @@ const StudyCore = (() => {
     }
     return out;
   }
-  return { noteCard, mixPool, mixDraw, MIX_TRACKS, kindOf, answerOf, palaceList, isStem, sentence, plan, planToday, planNext, dayOf, DAY, PASS, KEY, IMPORT_KEY, INTERVALS, RANKS, books, load, save, startOfDay, shuffle, questions, points, stars, record, passed, due, rank };
+  // ---------- the hard parts of a typed answer (Robiyaxon's app, 24.11.2026): spelling is forgiven, numbers, signs, charges and units
+  // never are. "−80 мВ" for −90 мВ, "90" for −90, "Ca+" for Ca²⁺ and "мс" for мВ are wrong; a unit or a charge left out is the fuzzy
+  // check's business. Numbers in brackets in the answer may be typed but needn't be.
+  // superscript signs become ⊕ ⊖ so they're never taken for a hyphen next to them (K⁺-каналы); units in Russian and English, each with
+  // the one name it's compared by (мВ = mV)
+  const SUP = { "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9", "⁺": "⊕", "⁻": "⊖" };
+  const UNIT_NAMES = { mmhg: ["ммртст", "mmhg"], cmh2o: ["смводст", "cmh2o", "cmh₂o"], "mmol/l": ["ммоль/л", "mmol/l"], "μmol/l": ["мкмоль/л", "μmol/l"],
+    "mosm/l": ["мосм/л", "мосмоль/л", "mosm/l", "mosmol/l"], "meq/l": ["мэкв/л", "meq/l"], "ml/min": ["мл/мин", "ml/min"], "l/min": ["л/мин", "l/min"],
+    "mm/h": ["мм/ч", "mm/h"], "cm/s": ["см/с", "cm/s"], "m/s": ["м/с", "m/s"], "imp/s": ["имп/с", "imp/s"], "g/l": ["г/л", "g/l"], "mg/l": ["мг/л", "mg/l"],
+    kcal: ["ккал", "kcal"], kj: ["кдж", "kj"], kpa: ["кпа", "kpa"], μm: ["мкм", "μm", "um"], nm: ["нм", "nm"], mm: ["мм", "mm"], cm: ["см", "cm"],
+    km: ["км", "km"], mv: ["мв", "mv"], μv: ["мкв", "μv", "uv"], ms: ["мс", "ms"], min: ["мин", "min"], ml: ["мл", "ml"], mg: ["мг", "mg"],
+    μg: ["мкг", "μg"], kg: ["кг", "kg"], hz: ["гц", "hz"], atm: ["атм", "atm"], "°c": ["°c", "°с"], "%": ["%"], h: ["ч", "h"], l: ["л", "l"],
+    g: ["г", "g"], m: ["м", "m"], s: ["с", "s"] };
+  const UNITS = Object.entries(UNIT_NAMES).flatMap(([name, forms]) => forms.map((f) => [f, name])).sort((x, y) => y[0].length - x[0].length);
+  function hardParts(text) {
+    let t = String(text || "").replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻]+/g, (m) => `^${[...m].map((x) => SUP[x]).join("")}`)
+      .normalize("NFKC").replace(/µ/g, "μ").replace(/[‐‑‒–—−]/g, "-").replace(/(\d),(\d)/g, "$1.$2").replace(/ё/gi, "е");
+    const nums = [], units = {}, ions = {};
+    // an ion: a symbol and its charge (Na+, Ca2+, Ca++, Cl-, HCO3-; Ca²⁺ is Ca^2⊕ by now); then out of the way
+    const ION = /(?<![A-Za-z])(Na|K|Ca|Cl|Mg|H|HCO3|HPO4|H2PO4|NH4|Fe|Zn|Cu|SO4|PO4)\s?(?:\^(\d?)(⊕{1,3}|⊖{1,3})|(\d?)(\+{1,3}|-{1,3}))(?![A-Za-z0-9])/g;
+    for (const m of t.matchAll(ION)) {
+      const digit = m[2] ?? m[4], signs = (m[3] ?? m[5]).replace(/⊕/g, "+").replace(/⊖/g, "-");
+      ions[m[1].toLowerCase()] = `${signs.length > 1 ? signs.length : Number(digit || 1)}${signs[0]}`;
+    }
+    t = t.replace(ION, " ion ").replace(/⊕/g, "+").replace(/⊖/g, "-");
+    // a number: its sign only when the dash sticks to it and isn't between two numbers (a range); not inside a name (E2, GATA-1, HCO3)
+    for (const m of t.matchAll(/(^|[^\dA-Za-zА-Яа-я.^])(-?)(\d+(?:\.\d+)?)/g)) {
+      const before = t.slice(0, m.index + m[1].length);
+      if (/[A-Za-zА-Яа-я]-?$/.test(before) && !/\s$/.test(before)) continue;
+      const signed = m[2] && !/\d\s*$/.test(before) ? `-${m[3]}` : m[3];
+      const value = String(Number(signed));
+      nums.push(value);
+      const rest = t.slice(m.index + m[0].length).replace(/^\s+/, "").toLowerCase(), flat = rest.replace(/[\s.]/g, "");
+      const u = UNITS.find(([f]) => flat.startsWith(f) && !/[a-zа-я]/.test(flat.charAt(f.length)));
+      if (u && !(value in units)) units[value] = u[1];
+    }
+    // a power: 10⁻⁷ (typed on a phone as 10^-7, 10-7 or 10 7, so its sign may be left out)
+    const pows = [...t.matchAll(/\d\s?\^(-?\d+)/g)].map((m) => String(Number(m[1])));
+    return { nums, units, ions, pows };
+  }
+  // units after a number put into their one name, so "−90 мВ" reads the same as "−90 mV" to the spelling check
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  const UNIT_RE = new RegExp(`(\\d)\\s*(${UNITS.map(([f]) => [...f].map(esc).join("[\\s.]*")).join("|")})(?![a-zа-яё])`, "gi");
+  const unitOf = new Map(UNITS), SHORT = { mmhg: "mm", cmh2o: "cm" };     // "120 мм" is enough for мм рт. ст. (the strict check agrees)
+  const canonUnits = (text) => String(text || "").replace(/µ/g, "μ").replace(UNIT_RE, (m, d, u) => `${d} ${SHORT[unitOf.get(u.toLowerCase().replace(/[\s.]/g, ""))] || unitOf.get(u.toLowerCase().replace(/[\s.]/g, "")) || u}`);
+  const noBrackets = (s) => String(s || "").replace(/\s*\([^)]*\)/g, " ");
+  function hardOk(typed, answer) {
+    const want = hardParts(noBrackets(answer)), may = hardParts(answer), got = hardParts(typed);
+    const abs = (x) => String(Math.abs(Number(x))), allowed = new Set([...may.nums, ...may.pows, ...may.pows.map(abs)]);
+    if ([...got.nums, ...got.pows].some((x) => !allowed.has(x))) return false;              // a number that isn't in the answer
+    if (want.nums.some((x) => !got.nums.includes(x))) return false;        // a number of the answer left out
+    const gotAll = [...got.nums, ...got.pows];
+    if (want.pows.some((x) => !gotAll.includes(x) && !gotAll.includes(abs(x)))) return false;
+    const same = (want, typed) => want === typed || (want === "mmhg" && typed === "mm") || (want === "cmh2o" && typed === "cm");   // "120 мм" for мм рт. ст.
+    for (const [x, u] of Object.entries(got.units)) if (may.units[x] && !same(may.units[x], u)) return false;
+    for (const [ion, ch] of Object.entries(got.ions)) if (may.ions[ion] && may.ions[ion] !== ch) return false;
+    return true;
+  }
+
+  return { hardParts, hardOk, canonUnits, noteCard, mixPool, mixDraw, MIX_TRACKS, kindOf, answerOf, palaceList, isStem, sentence, plan, planToday, planNext, dayOf, DAY, PASS, KEY, IMPORT_KEY, INTERVALS, RANKS, books, load, save, startOfDay, shuffle, questions, points, stars, record, passed, due, rank };
 })();
 window.StudyCore = StudyCore;
 
@@ -186,6 +245,10 @@ window.StudyCore = StudyCore;
   if (FRIENDS) for (const b of window.StudyBooks || []) delete b.plan;
   let prog = C.load(), books = C.books(), bookId = null, timer = null, screen = "home";
   let reviewQueue = [];        // "Review all due": the due stages still to play, one after another
+  // Robiyaxon's upgrade (24.11.2026; sites.json "study_plus" puts data-plus on <html>): focus mode, Today's session, unit chips, the
+  // strict check of numbers, and reporting a card
+  const PLUS = document.documentElement.hasAttribute("data-plus");
+  let session = [], inSession = false;     // Today's session: the stages still to play, one after another; until the goal, it goes on
   // coins, in every app (19.11.2026): rounds earn them, and every stage, chapter, final round and review shows what it can still give
   const SC = window.SoraCoins, COINS = !!SC;
   const commit = () => C.save(prog);
@@ -200,6 +263,8 @@ window.StudyCore = StudyCore;
     { key: "reviews", label: tr("Reviews a day"), type: "choice", default: 4, options: [[2, "2"], [4, "4"], [6, "6"], [0, tr("All")]],
       help: tr("Stages due for review shown on Home, the most important chapters first; the rest wait for another day") },
     { key: "speak", label: tr("Read questions aloud"), type: "toggle", default: false },
+    ...(PLUS ? [{ key: "goal", label: tr("Daily goal"), type: "choice", default: 25, options: [[15, "15"], [25, "25"], [40, "40"], [60, "60"]],
+      help: tr("Questions a day for Today's session") }] : []),
   ], { onChange: () => { if (screen === "home") home(); } });
   const S = settings.values;
   function speak(text) {
@@ -217,7 +282,11 @@ window.StudyCore = StudyCore;
   const date = (t) => { const d = new Date(t); return `${String(d.getDate()).padStart(2, "0")}.${String(d.getMonth() + 1).padStart(2, "0")}.${d.getFullYear()}`; };
   const when = (t) => { const days = Math.round((C.startOfDay(t) - C.startOfDay(Date.now())) / C.DAY); return days <= 0 ? tr("today") : days === 1 ? tr("tomorrow") : tr("in {n} {days} ({date})", { n: days, days: tr.n(days, "day", "days"), date: date(t) }); };
   const starRow = (n) => el("span", { class: "sq-stars", "aria-label": tr("{n} of 3 stars", { n }) }, ...[1, 2, 3].map((k) => el("i", { class: k <= n ? "on" : "" })));
-  function view(...children) { clearInterval(timer); timer = null; main.replaceChildren(...children); window.SoraNav?.changed(); }
+  function view(...children) {
+    clearInterval(timer); timer = null; main.replaceChildren(...children);
+    if (PLUS) document.body.classList.toggle("sq-focus", screen === "cards" || screen === "quiz");    // nothing but the round on screen
+    window.SoraNav?.changed();
+  }
   // where a screen sits, for going back one step (SoraNav: the ← button, a round's ✕, the phone's back gesture)
   let here = {};
   const book = () => books.find((b) => b.id === bookId) || books[0];
@@ -673,8 +742,56 @@ window.StudyCore = StudyCore;
     return out.filter((e) => e.n > 0);
   }
 
+  // ---------- Today's session (Robiyaxon's app): a goal of questions a day, the reviews due and the next stage, started with one button ----------
+  const doneToday = () => (prog.day?.d === dayKey() ? prog.day.n : 0);
+  function noteToday(n) { const d = dayKey(); prog.day = { d, n: (prog.day?.d === d ? prog.day.n : 0) + n }; }
+  // the stages for today: the reviews due, oldest first, until the goal's questions are covered, then the next stage that's open
+  function todayPlan(b) {
+    const lists = allLists(b), goal = Number(S.goal) || 25, done = doneToday(), need = Math.max(goal - done, 10);
+    const due = C.due(prog, lists.map((l) => l.id)).map((id) => lists.find((l) => l.id === id)).sort((x, y) => prog.lists[x.id].due - prog.lists[y.id].due);
+    const picks = [];
+    let n = 0;
+    for (const l of due) { if (n >= need) break; picks.push(l); n += l.items.length; }
+    const ns = nextStage(b)?.next;
+    const from = ns ? lists.findIndex((l) => l.id === ns.id) : -1;
+    const fresh = from < 0 ? null : [...lists.slice(from), ...lists.slice(0, from)].find((l) => !C.passed(prog, l.id) && open(l.chapter, l.chapter.lists.findIndex((x) => x.id === l.id)));
+    if (fresh && n < need) { picks.push(fresh); n += fresh.items.length; }
+    return { goal, done, due, fresh: picks.includes(fresh) ? fresh : null, picks, questions: n };
+  }
+  // one stage of the session: a stage never played starts with its cards; anything else is a round
+  function playSession(b) {
+    const l = allLists(b).find((x) => x.id === session[0]);
+    if (!l) { session = []; return home(); }
+    if (!prog.lists[l.id]?.plays) cards(b, l.chapter, l); else quiz(b, l.chapter, l);
+  }
+  function ring(done, goal) {
+    // drawn by the page's own parser (no SVG namespace address in this file); only numbers go into it
+    const r = 26, len = 2 * Math.PI * r, part = Math.min(1, goal ? done / goal : 0), box = document.createElement("div");
+    box.innerHTML = `<svg class="sq-ring" viewBox="0 0 64 64" aria-hidden="true"><circle class="track" cx="32" cy="32" r="${r}"/>` +
+      `<circle class="fill" cx="32" cy="32" r="${r}" stroke-dasharray="${(len * part).toFixed(1)} ${len.toFixed(1)}"/></svg>`;
+    const svg = box.firstChild;
+    return el("div", { class: `sq-goal ${part >= 1 ? "met" : ""}`.trim(), role: "img", "aria-label": tr("{done} of {goal} questions today", { done, goal }) },
+      svg, el("span", { class: "sq-goalnum" }, el("b", {}, String(done)), el("small", {}, `/ ${goal}`)));
+  }
+  function sessionCard(b) {
+    const p = todayPlan(b), met = p.done >= p.goal, mins = Math.max(1, Math.round((p.questions * 20) / 60));
+    const reviewsN = p.picks.filter((l) => l !== p.fresh).length;
+    const lines = [
+      reviewsN ? el("li", { class: "rev" }, tr("Review {n} {stages} due", { n: reviewsN, stages: tr.n(reviewsN, "stage", "stages") }), p.due.length > reviewsN ? el("small", {}, tr(" (the rest next time)")) : "") : "",
+      p.fresh ? el("li", { class: "new" }, tr("New: {stage}", { stage: p.fresh.name })) : "",
+    ].filter(Boolean);
+    const go = () => { session = p.picks.map((l) => l.id); inSession = true; playSession(b); };
+    return el("section", { class: `sq-today ${met ? "met" : ""}`.trim() },
+      ring(p.done, p.goal),
+      el("div", { class: "sq-todaytext" },
+        el("h3", {}, tr("Today's session")),
+        el("p", { class: "sq-todaygoal" }, met ? tr("Today's goal reached. Well done!") : tr("{left} more {questions} to today's goal", { left: p.goal - p.done, questions: tr.n(p.goal - p.done, "question", "questions") })),
+        lines.length ? el("ul", {}, ...lines) : el("p", { class: "hint" }, tr("Nothing due, and every open stage is passed.")),
+        p.picks.length ? el("div", { class: "row sq-act" }, btn(met ? tr("One more session") : tr("Start the session"), go, true), el("small", { class: "hint" }, tr("about {n} min", { n: mins }))) : ""));
+  }
+
   function home() {
-    screen = "home"; books = C.books(); reviewQueue = [];        // "Review all due" lasts while its Next review buttons are followed
+    screen = "home"; books = C.books(); reviewQueue = []; session = []; inSession = false;        // "Review all due" lasts while its Next review buttons are followed
     const b = book(); bookId = b?.id;
     if (!b) return view(head("No books yet", "There are no books here yet."));
     const r = C.rank(prog.xp), lists = allLists(b), ids = lists.map((l) => l.id), dueIds = C.due(prog, ids), o = COINS ? potOpts() : null;
@@ -689,6 +806,7 @@ window.StudyCore = StudyCore;
     if (b.id === "sbr" && !FRIENDS) refreshMarks(() => { if (screen === "home") home(); });
     view(
       books.length > 1 ? el("div", { class: "sq-tabs" }, ...books.map((x) => el("button", { type: "button", class: x.id === b.id ? "on" : "", onclick: () => { bookId = x.id; home(); } }, x.name))) : "",
+      PLUS ? sessionCard(b) : "",
       el("section", { class: "sq-top" },
         el("div", {}, el("h2", {}, `${b.name}: ${b.title}`), el("p", { class: "hint" }, one || bySection(b) ? `${b.about}.` : tr("{about}. {made} of {all} chapters ready.", { about: b.about, made, all: b.chapters.length }))),
         el("div", { class: "sq-rank" }, el("small", {}, tr("Rank")), el("b", {}, tr(r.name)), el("div", { class: "sq-meter" }, el("i", { style: `width:${pct}%` })),
@@ -735,6 +853,7 @@ window.StudyCore = StudyCore;
     return `${lines.join("\n")}\n\nMy question: `;
   }
   function askButton(it, where, given, ok) {
+    if (PLUS) return reportButton(it, where, given, ok);
     if (FRIENDS) return "";
     const text = askText(it, where, given, ok);
     const a = el("a", { class: "button small sq-ask", href: `https://t.me/${BOT}?text=${encodeURIComponent(text)}`, target: "_blank", rel: "noopener" }, "Ask about this");
@@ -871,7 +990,7 @@ window.StudyCore = StudyCore;
   }
   function chapter(b, c) {
     if (onePart(b)) return home();      // its stages are on Home
-    screen = "chapter"; here = { b, c };
+    screen = "chapter"; here = { b, c }; session = []; inSession = false;
     view(head(bySection(b) ? c.title : tr("Chapter {n}: {title}", { n: c.n, title: c.title }), `${c.pages ? tr("Book pages {pages}. ", { pages: c.pages }) : ""}${tr("Look at the cards, then play the stage. 80 % passes it and opens the next one.")}`),
       COINS ? partPotEl(b, c) : "",
       ...stageBoard(b, c),
@@ -926,6 +1045,50 @@ window.StudyCore = StudyCore;
     show();
   }
 
+  // ---------- typing on a phone (Robiyaxon's app): units and ions a tap away, put in where the cursor is; the keyboard stays up ----------
+  const CHIPS = window.SoraLang?.lang === "ru" ? ["мВ", "мм рт. ст.", "мл/мин", "с", "Na⁺", "K⁺", "Ca²⁺", "Cl⁻", "HCO₃⁻", "−"]
+    : ["mV", "mm Hg", "ml/min", "s", "Na⁺", "K⁺", "Ca²⁺", "Cl⁻", "HCO₃⁻", "−"];
+  function chips(input) {
+    const put = (x) => {
+      const v = input.value, a = input.selectionStart ?? v.length, z = input.selectionEnd ?? v.length;
+      const unit = /^[а-яa-z]/i.test(x), gap = unit && a > 0 && !/\s$/.test(v.slice(0, a)) ? " " : "";
+      input.value = v.slice(0, a) + gap + x + v.slice(z);
+      const at = a + gap.length + x.length;
+      input.focus(); input.setSelectionRange(at, at);
+    };
+    return el("div", { class: "sq-chips", role: "group", "aria-label": tr("Units and ions") }, ...CHIPS.map((x) => {
+      const b = el("button", { type: "button", class: "sq-chipkey", tabindex: "-1" }, x);
+      b.addEventListener("pointerdown", (e) => e.preventDefault());       // the input keeps its focus, so the phone's keyboard stays
+      b.addEventListener("click", () => put(x));
+      return b;
+    }));
+  }
+
+  // ---------- a card reported (Robiyaxon's app): "a mistake in this card" or a question, sent by SoraCoins.report through the club's
+  // server to the user's Telegram; kept on the phone until it goes ----------
+  function reportButton(it, where, given, ok) {
+    const card = C.sentence(shown(it)), opened = el("div", { class: "sq-report", hidden: true });
+    const toggle = btn(tr("Report a mistake / Ask"), () => { opened.hidden = !opened.hidden; if (!opened.hidden) opened.querySelector("textarea").focus(); }, false, "sq-reportbtn");
+    let kind = "mistake";
+    const kinds = el("div", { class: "set-choice sq-reportkind" }, ...[["mistake", tr("A mistake in the card")], ["question", tr("A question")]].map(([k, label]) => {
+      const b = el("button", { type: "button", class: k === kind ? "on" : "" }, label);
+      b.addEventListener("click", () => { kind = k; kinds.querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b)); });
+      return b;
+    }));
+    const note = el("textarea", { rows: "3", maxlength: "600", placeholder: tr("What's wrong, or what's your question? (the card goes with it)"), "aria-label": tr("Your note") });
+    const msg = el("p", { class: "hint", role: "status" });
+    const send = btn(tr("Send"), async () => {
+      const me = (() => { try { return JSON.parse(localStorage.getItem("sora.duel.me.v1") || "null"); } catch { return null; } })();
+      const row = { kind, where, card: card.slice(0, 900), given: given ? String(given).slice(0, 200) : "", note: note.value.trim().slice(0, 600), name: me?.name || "", ok: !!ok };
+      send.disabled = true;
+      const left = SC ? await SC.report(row) : 1;
+      msg.textContent = tr(left ? "Saved. It will be sent when the internet is back." : "Sent. Thank you!");
+      note.value = ""; setTimeout(() => { opened.hidden = true; send.disabled = false; msg.textContent = ""; }, 2200);
+    }, true, "small");
+    opened.append(kinds, note, el("div", { class: "row" }, send, btn(tr("Cancel"), () => { opened.hidden = true; }, false, "small link")), msg);
+    return el("div", { class: "sq-reportwrap" }, toggle, opened);
+  }
+
   // ---------- the quiz: a stage, or the chapter's boss round (l = null) ----------
   // mix = { items, pool }: the mixed boss across chapters (c and l are null); the chapter is shown only after answering
   function quiz(b, c, l, mix = null) {
@@ -973,7 +1136,7 @@ window.StudyCore = StudyCore;
         const check = () => { if (input.value.trim()) recallAnswer(input.value); };
         input.addEventListener("keydown", (e) => { if (e.key === "Enter") check(); });
         body.replaceChildren(el("div", { class: "sq-q" }, el("small", {}, q.gap || q.stem || !q.item.ask ? tr(q.gap ? "Fill the gap from memory" : q.stem ? "Finish the sentence from memory" : "Recall it") : q.item.ask), el("b", {}, q.prompt)),
-          el("div", { class: "sq-recall" }, input, el("div", { class: "row" }, btn(tr("Check"), check, true), btn(tr("I don't know"), () => recallAnswer("")))));
+          el("div", { class: "sq-recall" }, PLUS ? chips(input) : "", input, el("div", { class: "row" }, btn(tr("Check"), check, true), btn(tr("I don't know"), () => recallAnswer("")))));
         setTimeout(() => input.focus(), 30);
       } else {
         const opts = q.shown.map((o, k) => btn(o, () => answer(k), false, "sq-opt"));
@@ -988,7 +1151,10 @@ window.StudyCore = StudyCore;
     // and you can still say you knew it (self-check, as in Memory Palace)
     function recallAnswer(value) {
       clearInterval(timer); timer = null;
-      const q = qs[i], f = q.form || q.item, ok = value ? PalaceCore.matches(value, { text: f.text, alt: f.alt }) : false;
+      const q = qs[i], f = q.form || q.item;
+      // in Robiyaxon's app a number, a sign, a charge or a unit must be right as well (StudyCore.hardOk)
+      const cu = C.canonUnits, ok = !value ? false : !PLUS ? PalaceCore.matches(value, { text: f.text, alt: f.alt })
+        : PalaceCore.matches(cu(value), { text: cu(f.text), alt: (f.alt || []).map(cu) }) && [f.text, ...(f.alt || [])].some((c) => C.hardOk(value, c));
       body.querySelectorAll("input, button").forEach((x) => (x.disabled = true));
       if (ok) return settle(true, value);
       body.append(el("div", { class: "sq-why" }, el("b", {}, tr(value === null ? "Time's up." : value ? "Not quite." : "Here it is.")), from(q.item),
@@ -996,6 +1162,7 @@ window.StudyCore = StudyCore;
         el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
         el("div", { class: "row" }, btn(tr("Next →"), () => settle(false, value), true), value ? btn(tr("I was right after all"), () => settle(true, value)) : "",
           askButton(q.item, whereOf(b, q.item), value || "", false))));
+      if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });
     }
     function settle(ok, value) {
       const q = qs[i];
@@ -1040,6 +1207,7 @@ window.StudyCore = StudyCore;
       else body.append(el("div", { class: "sq-why" }, el("b", {}, tr(k < 0 ? "Time's up." : "Not this one.")), from(q.item),
         el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
         el("div", { class: "row" }, btn(tr(over ? "See the result" : "Next →"), go, true), askButton(q.item, whereOf(b, q.item), given, false))));
+      if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });     // "Next" on the screen, under the why
     }
     function finish() {
       screen = "result";
@@ -1055,6 +1223,12 @@ window.StudyCore = StudyCore;
       if (earned.length) SoraCoins.earn(earned);
       const coins = earned.reduce((s2, e) => s2 + e.n, 0);
       reviewQueue = reviewQueue.filter((x) => x !== id && C.due(prog, [x]).length);      // what's still due
+      if (PLUS) {
+        noteToday(log.length); session = session.filter((x) => x !== id);
+        // the session's stages played and the goal not reached yet: it goes on with what's next (a stage missed is played again)
+        if (inSession && !session.length && doneToday() < (Number(S.goal) || 25)) session = todayPlan(b).picks.map((x) => x.id);
+      }
+      const sessionNext = PLUS && session.length ? allLists(b).find((x) => x.id === session[0]) : null;
       const nextReview = l && reviewQueue.length ? allLists(b).find((x) => x.id === reviewQueue[0]) : null;
       for (const x of log) { const cid = cardId(b, x.item); if (cid) C.noteCard(prog, cid, x.ok); }
       commit();
@@ -1073,6 +1247,9 @@ window.StudyCore = StudyCore;
           after !== before ? el("b", { class: "sq-up" }, tr("New rank: {rank}!", { rank: tr(after) })) : ""),
         COINS ? coinResult(coins, pot0, potAfter, earned) : "",
         nextReview ? el("div", { class: "row" }, btn(tr("Next review ▶ ({n} left)", { n: reviewQueue.length }), () => quiz(b, nextReview.chapter, nextReview), true)) : "",
+        PLUS ? el("div", { class: "row sq-sessnext" }, ring(doneToday(), Number(S.goal) || 25),
+          sessionNext ? btn(tr("Next in the session ▶ ({n} left)", { n: session.length }), () => playSession(b), true)
+            : el("span", { class: "hint" }, doneToday() >= (Number(S.goal) || 25) ? tr("Today's goal reached. Well done!") : tr("{left} more {questions} to today's goal", { left: (Number(S.goal) || 25) - doneToday(), questions: tr.n((Number(S.goal) || 25) - doneToday(), "question", "questions") }))) : "",
         log.length ? el("section", { class: "card" }, el("h3", {}, tr(missed.length ? "Look at these once more" : "Your answers")),
           FRIENDS ? "" : el("p", { class: "hint" }, "Unsure about any of them? “Ask about this” opens Telegram with the card written out; add your question and send it."),
           el("ul", { class: "sq-missed" }, ...[...log.filter((x) => !x.ok), ...log.filter((x) => x.ok)].map((x) => el("li", { class: x.ok ? "ok" : "miss" },

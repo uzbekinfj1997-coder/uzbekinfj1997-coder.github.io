@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-app="robiyaxon" data-theme="light">
+<html lang="en" data-app="robiyaxon" data-theme="light" data-plus>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -33,6 +33,13 @@
 <link rel="apple-touch-icon" href="/robiyaxon/icon-192.png">
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="/static/app.css">
+
+<style>
+  @media (max-width: 767px) { .page-title p { display: block; -webkit-line-clamp: unset; overflow: visible; } }
+  body.sq-focus .page-title, body.sq-focus .sq-bar, body.sq-focus .tabbar { display: none; }
+  body.sq-focus main { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  @media (max-width: 767px) { body.sq-focus .topbar { display: none; } body.sq-focus main { padding-top: calc(12px + env(safe-area-inset-top)); } }
+</style>
 </head>
 
 

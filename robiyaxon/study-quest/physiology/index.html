@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-app="robiyaxon" data-theme="light">
+<html lang="en" data-app="robiyaxon" data-theme="light" data-plus>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -33,6 +33,13 @@
 <link rel="apple-touch-icon" href="/robiyaxon/icon-192.png">
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="/static/app.css">
+
+<style>
+  @media (max-width: 767px) { .page-title p { display: block; -webkit-line-clamp: unset; overflow: visible; } }
+  body.sq-focus .page-title, body.sq-focus .sq-bar, body.sq-focus .tabbar { display: none; }
+  body.sq-focus main { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+  @media (max-width: 767px) { body.sq-focus .topbar { display: none; } body.sq-focus main { padding-top: calc(12px + env(safe-area-inset-top)); } }
+</style>
 </head>
 
 
@@ -353,6 +360,56 @@
   /* on a phone the rank and the days in a row sit side by side under the title, so the top takes less room */
   @media (max-width: 760px) { .sq-top { grid-template-columns: 1fr auto; gap: var(--space-4); padding: var(--space-4); } .sq-top > :first-child { grid-column: 1 / -1; }
     .sq-rank { min-width: 0; } .sq-opts { grid-template-columns: 1fr; } .sq-card .q { font-size: 22px; } }
+</style>
+<style>
+  /* Robiyaxon's upgrade (24.11.2026): Today's session, the goal ring, unit chips, reporting a card, the round in focus */
+  .sq-today { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-4); align-items: center; padding: var(--space-4) var(--space-5, 20px);
+    background: var(--accent-soft, var(--bg-200)); border: 1px solid color-mix(in srgb, var(--accent-primary, var(--volt)) 35%, transparent); border-radius: 18px; }
+  .sq-today h3 { margin: 0; font-size: 20px; }
+  .sq-todaygoal { margin: 2px 0 6px; color: var(--text-secondary, var(--ink-muted)); }
+  .sq-today ul { margin: 0 0 4px; padding: 0; list-style: none; display: grid; gap: 4px; }
+  .sq-today li { padding-left: 18px; position: relative; }
+  .sq-today li::before { content: ""; position: absolute; left: 2px; top: .55em; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-primary, var(--volt)); }
+  .sq-today li.new::before { background: transparent; border: 2px solid var(--accent-primary, var(--volt)); width: 6px; height: 6px; }
+  .sq-today .sq-act { align-items: center; margin-top: 4px; }
+  .sq-goal { position: relative; width: 84px; height: 84px; flex: none; }
+  .sq-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .sq-ring circle { fill: none; stroke-width: 7; }
+  .sq-ring .track { stroke: color-mix(in srgb, var(--accent-primary, var(--volt)) 18%, transparent); }
+  .sq-ring .fill { stroke: var(--accent-primary, var(--volt)); stroke-linecap: round; transition: stroke-dasharray .6s ease; }
+  .sq-goal.met .sq-ring .fill { stroke: var(--accent-strong, var(--volt)); }
+  .sq-goalnum { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; line-height: 1; }
+  .sq-goalnum b { font-size: 24px; font-variant-numeric: tabular-nums; }
+  .sq-goalnum small { font-size: 12px; color: var(--text-secondary, var(--ink-muted)); }
+  .sq-sessnext { align-items: center; gap: var(--space-3); }
+  .sq-sessnext .sq-goal { width: 56px; height: 56px; }
+  .sq-sessnext .sq-goalnum b { font-size: 16px; } .sq-sessnext .sq-goalnum small { font-size: 10px; }
+  .sq-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .sq-chips::-webkit-scrollbar { display: none; }
+  .sq-chipkey { flex: none; min-height: 34px; height: 34px; padding: 0 11px; border-radius: 999px; font-size: 14.5px; font-weight: 600; text-transform: none; letter-spacing: 0;
+    background: var(--bg-surface, var(--bg-200)); border: 1px solid var(--border-subtle, var(--line)); color: var(--text-primary, var(--ink)); }
+  .sq-chipkey:active { background: var(--accent-soft, var(--bg-200)); }
+  .sq-reportwrap { display: grid; gap: 6px; flex-basis: 100%; }
+  .sq-reportbtn { justify-self: start; min-height: 30px; height: auto; padding: 4px 2px; border: 0; background: none; font-size: 13.5px; font-weight: 500;
+    text-transform: none; letter-spacing: 0; color: var(--text-secondary, var(--ink-muted)); text-decoration: underline; text-underline-offset: 3px; }
+  .sq-reportbtn:hover { background: none; color: var(--text-primary, var(--ink)); }
+  .sq-report { display: grid; gap: 8px; padding: 10px; border: 1px solid var(--border-subtle, var(--line)); border-radius: 12px; background: var(--bg-surface, var(--bg-100)); max-width: 560px; }
+  .sq-report[hidden] { display: none; }
+  .sq-report textarea { width: 100%; box-sizing: border-box; font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--border-subtle, var(--line)); background: var(--bg-canvas, var(--bg-100)); color: var(--text-primary, var(--ink)); }
+  .sq-report .hint:empty { display: none; }
+  /* the round in focus: a smaller title, no description, so the question and its options fit */
+  body.sq-focus .sq-head h2 { font-size: 18px; margin: 0; text-transform: none; letter-spacing: 0; }
+  body.sq-focus .sq-head .hint { display: none; }
+  body.sq-focus .sq { gap: var(--space-3); }
+  @media (max-width: 767px) {
+    .sq-today { grid-template-columns: 1fr auto; padding: var(--space-4); }
+    .sq-today .sq-goal { grid-column: 2; grid-row: 1; width: 72px; height: 72px; }
+    .sq-today .sq-todaytext { grid-column: 1; grid-row: 1; }
+    body.sq-focus .sq-q { padding: var(--space-4); }
+    body.sq-focus .sq-q b { font-size: 20px; line-height: 1.3; }
+    body.sq-focus .sq-opt { min-height: 52px; padding: 10px 14px; }
+    body.sq-focus .sq-opts { gap: 8px; }
+  }
 </style>
 
 <div class="sq" id="sq">

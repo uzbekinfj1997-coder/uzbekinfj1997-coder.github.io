@@ -599,6 +599,16 @@ window.SORA_DICT = Object.assign(window.SORA_DICT || {}, { ru: {
   "theme, language, backup file": "тема, язык, файл с копией",
 
   // ---------- Robiyaxon's upgrade (24.11.2026): Today's session, unit chips, reporting a card ----------
+  "📋 Norms table": "📋 Таблица норм",
+  "Diagrams ({n})": "Схемы ({n})",
+  "Norms table": "Таблица норм",
+  "Every value of this chapter, with a search": "Все значения главы, с поиском",
+  "Look up a normal value": "Найти норму",
+  "Nothing found. Try another word or a number.": "Ничего не найдено. Попробуйте другое слово или число.",
+  "Search: a name or a value": "Поиск: название или значение",
+  "Search the norms": "Поиск по нормам",
+  "The normal values of Pokrovsky's table, as in the cards of chapter {n}.": "Нормы из таблицы учебника Покровского — те же, что в карточках главы {n}.",
+  "← Chapter": "← Глава",
   "Daily goal": "Цель на день",
   "Questions a day for Today's session": "Сколько вопросов в день в сегодняшней сессии",
   "{done} of {goal} questions today": "Сегодня {done} из {goal} вопросов",

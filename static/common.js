@@ -91,6 +91,30 @@ async function applyUpdate() {
     "Close the black window and start the app again with start.bat.");
 }
 
+// ---------- Sora updated itself while this page was open (Sora personal; the server sets window.SORA_RUNNING) ----------
+// Sora installs updates by itself and restarts when nobody is using it, but a tab left open still runs the old scripts. Home coming
+// back into view reloads itself; every other page (a written answer, a walk, a game) only says so with a Reload button, so nothing is lost.
+async function runningVersion() {
+  try { return (await (await fetch("/api/version", { cache: "no-store" })).json()).running || ""; } catch { return ""; }
+}
+function watchForUpdates() {
+  const mine = window.SORA_RUNNING;
+  if (!mine || !$("updatePanel")) return;
+  let told = false;
+  async function look(cameBack) {
+    const now = await runningVersion();
+    if (!now || now === mine) return;
+    if (cameBack && document.body.hasAttribute("data-home")) return location.reload();
+    if (told) return;
+    told = true;
+    updatePanel("available", el("strong", {}, "Sora was updated. "), `It now runs ${now}; reload this page to use it. `,
+      el("button", { class: "primary small", onclick: () => location.reload() }, "Reload"));
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") look(true); });
+  setInterval(() => { if (document.visibilityState === "visible") look(false); }, window.SORA_UPDATE_POLL_MS || 300000);
+}
+if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", watchForUpdates); else watchForUpdates();
+
 // ---------- theme: dark by default, or light or Monokai, chosen in Settings and remembered in this browser ----------
 const THEMES = [["dark", "Dark"], ["light", "Light"], ["monokai", "Monokai"]];
 function setTheme(t) {
@@ -305,7 +329,9 @@ const SoraNav = (() => {
     (document.getElementById("backSlot") || document.body).append(b);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount); else mount();
-  return { register, changed, back, ask, exitButton, home: goHome };
+  // a round half-way (an update waits for it before reloading the page)
+  const busy = () => depth() > 0 && !!page?.busy?.();
+  return { register, changed, back, ask, exitButton, busy, home: goHome };
 })();
 window.SoraNav = SoraNav;
 

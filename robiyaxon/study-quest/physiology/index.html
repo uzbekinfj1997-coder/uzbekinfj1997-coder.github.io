@@ -416,6 +416,22 @@
     body.sq-focus .sq-opt { min-height: 52px; padding: 10px 14px; }
     body.sq-focus .sq-opts { gap: 8px; }
   }
+  /* step 4 (24.11.2026): a card's diagram (study/figs.js) and the norms table of chapter 20 */
+  .sq-fig { margin: 12px 0 0; padding: 10px 10px 8px; background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle); border-radius: 14px; }
+  .sq-figpic svg { display: block; width: 100%; height: auto; }
+  .sq-figs { margin: var(--space-3) 0; } .sq-figs summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+  .sq-figs .sq-figgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--space-3); align-items: start; }
+  .sq-fig figcaption { margin-top: 4px; font-size: 13px; color: var(--text-secondary, var(--ink-muted)); text-align: center; }
+  .sq-normsrow { align-items: center; gap: var(--space-3); margin: var(--space-3) 0; }
+  .sq-normsearch { width: 100%; max-width: 560px; font-size: 16px; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--border-strong); background: var(--bg-surface, #fff); color: inherit; margin: var(--space-2) 0 var(--space-4); }
+  .sq-norms { display: grid; gap: var(--space-4); }
+  .sq-normsec { background: var(--bg-surface, #fff); border: 1px solid var(--border-subtle); border-radius: 16px; padding: var(--space-3) var(--space-4); }
+  .sq-normhead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); }
+  .sq-normhead h3 { margin: 0 0 var(--space-2); font-size: 17px; }
+  .sq-normsec dl { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .sq-normsec dt, .sq-normsec dd { margin: 0; padding: 7px 0; border-top: 1px solid var(--border-subtle); line-height: 1.35; }
+  .sq-normsec dd { padding-left: var(--space-4); text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--accent-text, var(--accent-primary)); }
+  @media (max-width: 560px) { .sq-normsec dl { grid-template-columns: 1fr; } .sq-normsec dd { text-align: left; padding: 0 0 8px; border-top: 0; white-space: normal; } }
 </style>
 
 <div class="sq" id="sq">
@@ -466,6 +482,7 @@
 <script>window.SORA_BOOK = "physiology";</script>
 <script src="/static/study/physiology.js"></script>
 <script src="/static/study/books-lang.js"></script>
+<script src="/static/study/figs.js"></script>
 <script src="/static/study/game.js"></script>
 
 </body>

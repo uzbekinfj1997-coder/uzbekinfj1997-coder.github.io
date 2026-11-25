@@ -895,6 +895,7 @@ window.StudyCore = StudyCore;
     view(
       books.length > 1 ? el("div", { class: "sq-tabs" }, ...books.map((x) => el("button", { type: "button", class: x.id === b.id ? "on" : "", onclick: () => { bookId = x.id; home(); } }, x.name))) : "",
       PLUS ? sessionCard(b) : "",
+      PLUS ? normsLink(b) : "",
       el("section", { class: "sq-top" },
         el("div", {}, el("h2", {}, `${b.name}: ${b.title}`), el("p", { class: "hint" }, one || bySection(b) ? `${b.about}.` : tr("{about}. {made} of {all} chapters ready.", { about: b.about, made, all: b.chapters.length }))),
         el("div", { class: "sq-rank" }, el("small", {}, tr("Rank")), el("b", {}, tr(r.name)), el("div", { class: "sq-meter" }, el("i", { style: `width:${pct}%` })),
@@ -1081,15 +1082,73 @@ window.StudyCore = StudyCore;
     screen = "chapter"; here = { b, c }; session = []; inSession = false;
     view(head(bySection(b) ? c.title : tr("Chapter {n}: {title}", { n: c.n, title: c.title }), `${c.pages ? tr("Book pages {pages}. ", { pages: c.pages }) : ""}${tr("Look at the cards, then play the stage. 80 % passes it and opens the next one.")}`),
       COINS ? partPotEl(b, c) : "",
+      chapterFigs(c),
+      PLUS && c.norms ? el("div", { class: "row sq-normsrow" }, btn(tr("📋 Norms table"), () => normsView(b, c), true), el("small", { class: "hint" }, tr("Every value of this chapter, with a search"))) : "",
       ...stageBoard(b, c),
       // Memory Palace is Sora personal's: the websites don't carry it
       el("div", { class: "row sq-foot" }, btn(`← ${partsName(b)}`, home, false, "link"), ""));
+  }
+
+  // ---------- the norms table (Robiyaxon's upgrade step 4): a chapter marked "norms" (Physiology 20) is also a table to look values up in;
+  // its know stages are the sections and their cards the rows, so the table and the cards can never disagree ----------
+  const normsChapter = (b) => (PLUS ? b.chapters.find((c) => c.norms && c.lists.length) : null);
+  function normsLink(b) {
+    const c = normsChapter(b);
+    return c ? el("div", { class: "row sq-normsrow" }, btn(tr("📋 Norms table"), () => normsView(b, c), false, "small"), el("small", { class: "hint" }, tr("Look up a normal value"))) : "";
+  }
+  const fold = (t) => String(t || "").toLowerCase().replace(/ё/g, "е").replace(/[,.]/g, " ").replace(/\s+/g, " ");
+  const normName = (it) => String(shown(it).key || "").replace(/\s*(—\s*)?…\s*$/, "").replace(/[:—]\s*$/, "").trim();
+  function normsView(b, c, query = "") {
+    screen = "norms"; here = { b, c };
+    const sections = c.lists.map((l, k) => [l, k]).filter(([l]) => trackOf(l) === "know")
+      .map(([l, k]) => ({ l, k, title: l.name.replace(/^\d+\.\d+\s+/, ""), rows: l.items.filter((it) => C.kindOf(it) === "sentence") }));
+    const list = el("div", { class: "sq-norms" }), none = el("p", { class: "hint", hidden: "" }, tr("Nothing found. Try another word or a number."));
+    function draw(q) {
+      // Russian names change their endings (калий, Калия; желчь, желчи): a longer word matches without its last letter or two
+      const stem = (w) => (w.length >= 7 && /[а-я]{2}$/.test(w) ? w.slice(0, -2) : w.length >= 5 && /[а-я]$/.test(w) ? w.slice(0, -1) : w);
+      const words = fold(q).split(" ").filter(Boolean).map(stem);
+      // each word must start a word of the row (so «кали» finds «Калия», not «горизонтали»)
+      const hit = (it, title) => { const t = ` ${fold(`${normName(it)} ${shown(it).text} ${it.find || ""} ${title}`).replace(/[^a-zа-я0-9%]+/g, " ")}`;
+        return !words.length || words.every((w) => t.includes(` ${w}`)); };
+      let shownRows = 0;
+      list.replaceChildren(...sections.map((s) => {
+        const rows = s.rows.filter((it) => hit(it, s.title));
+        shownRows += rows.length;
+        return rows.length ? el("section", { class: "sq-normsec" },
+          el("div", { class: "sq-normhead" }, el("h3", {}, s.title), btn(tr("Cards"), () => cards(b, c, s.l), false, "small link")),
+          el("dl", {}, ...rows.flatMap((it) => [el("dt", {}, normName(it)), el("dd", {}, shown(it).text)]))) : "";
+      }));
+      none.hidden = shownRows > 0;
+    }
+    const search = el("input", { type: "search", class: "sq-normsearch", placeholder: tr("Search: a name or a value"), "aria-label": tr("Search the norms"), value: query,
+      oninput: () => draw(search.value) });
+    view(head(tr("Norms table"), tr("The normal values of Pokrovsky's table, as in the cards of chapter {n}.", { n: c.n })), search, none, list,
+      el("div", { class: "row sq-foot" }, btn(tr("← Chapter"), () => chapter(b, c), false, "link"), ""));
+    draw(query);
   }
 
   // an explanation laid out in parts: "Rule: … Applied: … Common mistake: …" or "Step 1 (…): …" each on its own line
   const WHY_PARTS = /(?=\b(?:Reference:|P\/L category:|Users:|Step \d+(?: \([^)]*\))?:|Rule(?: of thumb[^:]*)?:|Why(?: \([^)]*\))?:|Applied:|Accounting:|Ethics:|Also:|So:|Common mistakes?:))/;
   // what is known today, where the textbook (whose answer the card keeps) differs: a box under the answer, never asked (Robiyaxon's app)
   const nowEl = (it) => (PLUS && it?.now ? el("div", { class: "sq-now", role: "note" }, el("b", {}, tr("⚠ Today's data")), el("p", {}, it.now)) : "");
+  // a card's diagram (study/figs.js, Robiyaxon's upgrade step 4): on the card's back and after it's answered, never in the question
+  const FIGS = PLUS ? window.StudyFigs : null;
+  if (FIGS?.css && !document.getElementById("sqFigCss")) document.head.append(el("style", { id: "sqFigCss" }, FIGS.css));
+  const figLang = () => (window.SoraLang?.lang === "ru" ? "ru" : "en");
+  function figBox(id) {
+    const f = FIGS?.[id];
+    if (!f?.svg) return "";
+    const box = el("figure", { class: "sq-fig" }), pic = el("div", { class: "sq-figpic" });
+    pic.innerHTML = f.svg(figLang());
+    box.append(pic, el("figcaption", {}, f.title?.[figLang()] || f.title?.en || ""));
+    return box;
+  }
+  const figEl = (it) => (FIGS && it?.fig ? figBox(it.fig) : "");
+  // a chapter's diagrams, together under its stages' heading, folded («Схемы»)
+  function chapterFigs(c) {
+    const ids = FIGS ? [...new Set(c.lists.flatMap((l) => l.items.map((it) => it.fig).filter((f) => f && FIGS[f])))] : [];
+    return ids.length ? el("details", { class: "sq-figs" }, el("summary", {}, tr("Diagrams ({n})", { n: ids.length })), el("div", { class: "sq-figgrid" }, ...ids.map(figBox))) : "";
+  }
   function whyEl(text, cls = "") {
     let parts = String(text).split(WHY_PARTS).map((x) => x.trim()).filter(Boolean);
     // "Reference: IFRS 13, para 9. The rest…": the reference is its own line even when the rest has no labelled parts
@@ -1115,7 +1174,7 @@ window.StudyCore = StudyCore;
       : k === "order" ? [el("b", { class: "k" }, it.q), el(it.any ? "ul" : "ol", { class: "sq-steps" }, ...it.steps.map((x) => el("li", {}, x))),
         it.any && it.not?.length ? el("p", { class: "hint" }, tr("Not part of it: {list}", { list: it.not.join("; ") })) : ""]
       : [el("b", { class: "k" }, it.q), el("p", { class: "t" }, C.answerOf(it))];
-    return el("div", {}, ...ans, it.why ? whyEl(it.why, "why") : "", nowEl(it), it.image ? el("p", { class: "img" }, tr("Picture: {image}", { image: it.image })) : "");
+    return el("div", {}, ...ans, it.why ? whyEl(it.why, "why") : "", nowEl(it), figEl(it), it.image ? el("p", { class: "img" }, tr("Picture: {image}", { image: it.image })) : "");
   }
   function cards(b, c, l) {
     screen = "cards"; here = { b, c };
@@ -1250,7 +1309,7 @@ window.StudyCore = StudyCore;
       if (ok) return settle(true, value);
       body.append(el("div", { class: "sq-why" }, el("b", {}, tr(value === null ? "Time's up." : value ? "Not quite." : "Here it is.")), from(q.item),
         value ? el("p", { class: "hint" }, tr("You wrote: {value}", { value })) : "",
-        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
+        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), figEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
         el("div", { class: "row" }, btn(tr("Next →"), () => settle(false, value), true), value ? btn(tr("I was right after all"), () => settle(true, value, true)) : "",
           askButton(q.item, whereOf(b, q.item), value || "", false))));
       if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });
@@ -1265,7 +1324,7 @@ window.StudyCore = StudyCore;
       const go = () => { if (over) finish(); else { i++; ask(); } };
       if (!ok) return go();
       body.querySelector(".sq-why")?.remove();
-      body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), el("p", { class: "sentence" }, C.sentence(shown(q.item))), nowEl(q.item),
+      body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), el("p", { class: "sentence" }, C.sentence(shown(q.item))), nowEl(q.item), figEl(q.item),
         btn(tr(over ? "See the result" : "Next →"), go, true)));
       body.querySelector(".sq-ok-box button").focus();
     }
@@ -1293,10 +1352,10 @@ window.StudyCore = StudyCore;
       const go = () => { if (over) finish(); else { i++; ask(); } };
       // a right answer moves on by itself, except where the reason is worth reading (true/false, scenarios, comparisons)
       if (ok && q.kind === "sentence" && !(PLUS && q.item.now)) { body.append(el("p", { class: "sq-ok" }, tr("Right!")), from(q.item)); setTimeout(() => { if (screen === "quiz" && body.isConnected) go(); }, 650); }
-      else if (ok) body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item),
+      else if (ok) body.append(el("div", { class: "sq-ok-box" }, el("p", { class: "sq-ok" }, tr("Right!")), from(q.item), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), figEl(q.item),
         el("div", { class: "row" }, btn(tr(over ? "See the result" : "Next →"), go, true), askButton(q.item, whereOf(b, q.item), given, true))));
       else body.append(el("div", { class: "sq-why" }, el("b", {}, tr(k < 0 ? "Time's up." : "Not this one.")), from(q.item),
-        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
+        el("p", { class: "sentence" }, C.sentence(shown(q.item))), q.item.why ? whyEl(q.item.why) : "", nowEl(q.item), figEl(q.item), q.item.image ? el("p", { class: "hint" }, tr("Picture: {image}", { image: q.item.image })) : "",
         el("div", { class: "row" }, btn(tr(over ? "See the result" : "Next →"), go, true), askButton(q.item, whereOf(b, q.item), given, false))));
       if (PLUS) body.lastElementChild?.querySelector("button.primary")?.scrollIntoView({ block: "nearest" });     // "Next" on the screen, under the why
     }
@@ -1361,7 +1420,7 @@ window.StudyCore = StudyCore;
           FRIENDS ? "" : el("p", { class: "hint" }, "Unsure about any of them? “Ask about this” opens Telegram with the card written out; add your question and send it."),
           el("ul", { class: "sq-missed" }, ...[...log.filter((x) => !x.ok), ...log.filter((x) => x.ok)].map((x) => el("li", { class: x.ok ? "ok" : "miss" },
             el("b", {}, `${x.ok ? "✓" : "✗"} ${C.sentence(shown(x.item))}`), !x.ok && x.given ? el("div", { class: "hint" }, tr("Your answer: {answer}", { answer: x.given })) : "",
-            !x.ok && x.item.why ? whyEl(x.item.why) : "", nowEl(x.item), !x.ok && x.item.image ? el("div", { class: "hint" }, tr("Picture: {image}", { image: x.item.image })) : "",
+            !x.ok && x.item.why ? whyEl(x.item.why) : "", nowEl(x.item), figEl(x.item), !x.ok && x.item.image ? el("div", { class: "hint" }, tr("Picture: {image}", { image: x.item.image })) : "",
             askButton(x.item, whereOf(b, x.item), x.given, x.ok))))) : "",
         mix?.review ? el("div", { class: "row" }, btn(tr("Reviews"), () => reviews(b)), btn(tr("Chapters"), home, false, "link"))
           : mix ? el("div", { class: "row" }, btn(tr("Another mixed quiz"), () => mixBoss(b), true), btn(tr("Chapters"), home, false, "link"))
@@ -1390,12 +1449,12 @@ window.StudyCore = StudyCore;
 
   $("sqHome").onclick = home;
   setupFullscreen(root);
-  window.StudyQuest = { home, chapter, cards, quiz, written, attempt, progress: () => prog, books: () => books };   // for tests
+  window.StudyQuest = { home, chapter, cards, quiz, normsView, written, attempt, progress: () => prog, books: () => books };   // for tests
   // one step back: a stage's cards, round or result go to their chapter (or Home, for a book in one part or the mixed quiz); an answer
   // being written to the list of questions; anything else to Home. A round half-way asks first.
   function goBack() {
     const { b, c, mix } = here, bk = b || book();
-    if (["cards", "quiz", "result"].includes(screen) && !mix && c && !onePart(bk)) return chapter(bk, c);
+    if (["cards", "quiz", "result", "norms"].includes(screen) && !mix && c && !onePart(bk)) return chapter(bk, c);
     if (["attempt", "wfinish"].includes(screen) && bk) return written(bk);
     home();
   }
